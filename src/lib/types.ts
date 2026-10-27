@@ -1,4 +1,6 @@
-export type Farm = { id: string; owner_id: string; name: string; location: string; created_at: string };
+import type { FarmSettings } from "./farmSettings";
+
+export type Farm = { id: string; owner_id: string; name: string; location: string; created_at: string; settings?: Partial<FarmSettings> | null };
 export type Calf = {
   id: string;
   farm_id: string;

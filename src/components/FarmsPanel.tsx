@@ -7,7 +7,7 @@ import { Button, Card, Empty, Field, Input, Modal, toast } from "./ui";
 
 type Editing = { farm: Farm | null };
 
-export function FarmsPanel({ farms, roles, userId, email, onChanged, onOpen }: { farms: Farm[]; roles: Record<string, Role>; userId: string; email: string; onChanged: () => Promise<void>; onOpen: (id: string) => void }) {
+export function FarmsPanel({ farms, roles, userId, email, onChanged, onOpen, onCreated }: { farms: Farm[]; roles: Record<string, Role>; userId: string; email: string; onChanged: () => Promise<void>; onOpen: (id: string) => void; onCreated: (id: string) => void }) {
   const [editing, setEditing] = useState<Editing | null>(null);
 
   return <div className="space-y-4">
@@ -31,7 +31,7 @@ export function FarmsPanel({ farms, roles, userId, email, onChanged, onOpen }: {
         })}
       </div>}
 
-    {editing ? <FarmForm farm={editing.farm} onClose={() => setEditing(null)} onSaved={async (id) => { setEditing(null); await onChanged(); if (id) onOpen(id); }} /> : null}
+    {editing ? <FarmForm farm={editing.farm} onClose={() => setEditing(null)} onSaved={async (id) => { setEditing(null); await onChanged(); if (id) onCreated(id); }} /> : null}
   </div>;
 }
 

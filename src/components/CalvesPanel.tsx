@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowRightLeft, ChevronRight, Milk, Plus, RefreshCw, Search, Upload } from "lucide-react";
-import { CATEGORIES, ageDays, effectiveCategory, formatAge, formatDate, formatKg, parseNum, today, validateCalf } from "../lib/calves";
+import { ageDays, effectiveCategory, formatAge, formatDate, formatKg, parseNum, today, validateCalf } from "../lib/calves";
+import { settingsOf } from "../lib/farmSettings";
 import { tpiCategory } from "../lib/indicators";
 import { errorText, supabase } from "../lib/supabase";
 import type { Calf, CalfInput, Farm } from "../lib/types";
@@ -9,7 +10,7 @@ import { CalfDetail, ColostrumFields, TPI_STYLE, colostrumValues } from "./CalfD
 import { ChangeCategoryModal } from "./ChangeCategoryModal";
 import { Button, Card, Empty, Field, Input, Modal, Select, Textarea, toast } from "./ui";
 
-type Filter = "todos" | (typeof CATEGORIES)[number]["name"] | "bajas";
+type Filter = string;
 
 export function CalvesPanel({ farm }: { farm: Farm }) {
   const [calves, setCalves] = useState<Calf[] | null>(null);
@@ -32,21 +33,22 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
   useEffect(() => { void load(); }, [load]);
 
   const now = today();
+  const cats = useMemo(() => settingsOf(farm).categories, [farm]);
   const active = useMemo(() => (calves ?? []).filter((c) => c.active), [calves]);
   const counts = useMemo(() => {
     const result = new Map<string, number>();
-    for (const c of active) { const cat = effectiveCategory(c, now).name; result.set(cat, (result.get(cat) ?? 0) + 1); }
+    for (const c of active) { const cat = effectiveCategory(c, now, cats).name; result.set(cat, (result.get(cat) ?? 0) + 1); }
     return result;
-  }, [active, now]);
+  }, [active, now, cats]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (calves ?? []).filter((c) => {
       if (filter === "bajas" ? c.active : !c.active) return false;
-      if (filter !== "todos" && filter !== "bajas" && effectiveCategory(c, now).name !== filter) return false;
+      if (filter !== "todos" && filter !== "bajas" && effectiveCategory(c, now, cats).name !== filter) return false;
       return !q || c.tag.toLowerCase().includes(q) || c.location.toLowerCase().includes(q);
     });
-  }, [calves, filter, query, now]);
+  }, [calves, filter, query, now, cats]);
 
   const archivedCount = (calves ?? []).length - active.length;
 
@@ -61,15 +63,15 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
       </div>
     </div>
 
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className={`grid grid-cols-2 gap-3 ${cats.length === 3 ? "sm:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5"}`}>
       <Stat label="Activos" value={active.length} highlight />
-      {CATEGORIES.map((c) => <Stat key={c.name} label={c.name} value={counts.get(c.name) ?? 0} hint={`por edad: ${c.minAgeDays}–${c.maxAgeDays} días`} />)}
+      {cats.map((c) => <Stat key={c.name} label={c.name} value={counts.get(c.name) ?? 0} hint={`por edad: ${c.minAgeDays}–${c.maxAgeDays} días`} />)}
     </div>
 
     <Card className="space-y-3 !p-3 sm:!p-4">
       <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 mt-0.5 size-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por caravana o ubicación" className="!mt-0 pl-9" aria-label="Buscar" /></div>
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-        {(["todos", ...CATEGORIES.map((c) => c.name), ...(archivedCount ? ["bajas" as const] : [])] as Filter[]).map((f) => <button key={f} onClick={() => setFilter(f)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${filter === f ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>{f === "todos" ? "Todos" : f === "bajas" ? `Bajas (${archivedCount})` : f}</button>)}
+        {(["todos", ...cats.map((c) => c.name), ...(archivedCount ? ["bajas" as const] : [])] as Filter[]).map((f) => <button key={f} onClick={() => setFilter(f)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${filter === f ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>{f === "todos" ? "Todos" : f === "bajas" ? `Bajas (${archivedCount})` : f}</button>)}
       </div>
     </Card>
 
@@ -80,7 +82,7 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
         {visible.map((calf) => {
           const days = ageDays(calf.birth_date, now);
           const tpi = tpiCategory(calf);
-          const cat = effectiveCategory(calf, now);
+          const cat = effectiveCategory(calf, now, cats);
           return <li key={calf.id} className="min-w-0">
             <button onClick={() => setOpenId(calf.id)} className="flex w-full items-center gap-3 rounded-2xl border border-[#dce5e1] bg-white p-3 text-left shadow-[0_4px_16px_rgba(15,76,58,.05)] hover:border-brand/40">
               <span className={`grid size-12 shrink-0 place-items-center rounded-xl text-sm font-black ${calf.sex === "Hembra" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-sky-700"}`}>{calf.sex === "Hembra" ? "H" : "M"}</span>
@@ -96,10 +98,10 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
         })}
       </ul>}
 
-    {moving && calves ? <ChangeCategoryModal calves={calves} preselected={filter !== "todos" && filter !== "bajas" ? visible.filter((c) => c.active).map((c) => c.id) : []} onClose={() => setMoving(false)} onSaved={async () => { setMoving(false); await load(); }} /> : null}
+    {moving && calves ? <ChangeCategoryModal calves={calves} categories={cats} preselected={filter !== "todos" && filter !== "bajas" ? visible.filter((c) => c.active).map((c) => c.id) : []} onClose={() => setMoving(false)} onSaved={async () => { setMoving(false); await load(); }} /> : null}
     {bulk ? <BulkCalvesModal farm={farm} onClose={() => setBulk(false)} onSaved={async () => { setBulk(false); await load(); }} /> : null}
     {creating ? <NewCalf farmId={farm.id} onClose={() => setCreating(false)} onSaved={async () => { setCreating(false); await load(); }} /> : null}
-    {openId && calves?.find((c) => c.id === openId) ? <CalfDetail key={openId} calf={calves.find((c) => c.id === openId)!} onClose={() => setOpenId(null)} onChanged={load} /> : null}
+    {openId && calves?.find((c) => c.id === openId) ? <CalfDetail key={openId} categories={cats} calf={calves.find((c) => c.id === openId)!} onClose={() => setOpenId(null)} onChanged={load} /> : null}
   </div>;
 }
 

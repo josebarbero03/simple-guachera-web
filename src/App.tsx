@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Building2, CalendarCheck, ChartColumn, Upload, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
+import { Building2, Settings2, CalendarCheck, ChartColumn, Upload, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
 import { AuthScreen, Brand } from "./components/AuthScreen";
 import { CalvesPanel } from "./components/CalvesPanel";
 import { BulkImport } from "./components/BulkImport";
+import { FarmSettingsPanel } from "./components/FarmSettingsPanel";
 import { FarmsPanel } from "./components/FarmsPanel";
 import { IndicatorsPanel } from "./components/IndicatorsPanel";
 import { LogPanel } from "./components/LogPanel";
@@ -42,7 +43,7 @@ export function App() {
   </>;
 }
 
-type Tab = "hoy" | "registro" | "terneros" | "tratamientos" | "indicadores" | "carga" | "protocolos" | "equipo" | "establecimientos" | "mas";
+type Tab = "hoy" | "registro" | "terneros" | "tratamientos" | "indicadores" | "carga" | "protocolos" | "equipo" | "config" | "establecimientos" | "mas";
 type TabDef = { id: Tab; label: string; short?: string; icon: React.ReactNode };
 
 const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
@@ -54,14 +55,15 @@ const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
   carga: { id: "carga", label: "Carga masiva", icon: <Upload /> },
   protocolos: { id: "protocolos", label: "Protocolos", icon: <FileText /> },
   equipo: { id: "equipo", label: "Equipo", icon: <Users /> },
+  config: { id: "config", label: "Configuración", icon: <Settings2 /> },
   establecimientos: { id: "establecimientos", label: "Establecimientos", icon: <Building2 /> },
 };
-const MANAGER_TABS: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "registro", "carga", "protocolos", "equipo", "establecimientos"];
+const MANAGER_TABS: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
 // El operario solo ve lo del día; cambia de establecimiento desde el selector de arriba.
 const OPERATOR_TABS: Tab[] = ["hoy", "registro"];
 // En el celular la barra inferior muestra 4 accesos + "Más".
 const MANAGER_MOBILE: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "mas"];
-const MORE_TABS: Tab[] = ["registro", "carga", "protocolos", "equipo", "establecimientos"];
+const MORE_TABS: Tab[] = ["registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
 
 function Shell({ session }: { session: Session }) {
   const userId = session.user.id;
@@ -69,6 +71,8 @@ function Shell({ session }: { session: Session }) {
   const [roles, setRoles] = useState<Record<string, Role>>({});
   const [farmId, setFarmId] = useState(() => { try { return localStorage.getItem(FARM_KEY) ?? ""; } catch { return ""; } });
   const [tab, setTab] = useState<Tab>("hoy");
+  // Establecimiento recién creado: mostrar primero su configuración.
+  const [setupId, setSetupId] = useState<string | null>(null);
 
   const loadFarms = useCallback(async () => {
     const [f, m] = await Promise.all([
@@ -125,13 +129,14 @@ function Shell({ session }: { session: Session }) {
 
     <main className="mx-auto max-w-5xl px-4 py-5">
       {active === "mas" ? <MoreMenu onPick={go} />
-        : !farm || active === "establecimientos" ? <FarmsPanel farms={farms} roles={roles} userId={userId} email={session.user.email ?? ""} onChanged={loadFarms} onOpen={(id) => { setFarmId(id); go("hoy"); }} />
+        : !farm || active === "establecimientos" ? <FarmsPanel farms={farms} roles={roles} userId={userId} email={session.user.email ?? ""} onChanged={loadFarms} onOpen={(id) => { setFarmId(id); go("hoy"); }} onCreated={(id) => { setFarmId(id); setSetupId(id); go("config"); }} />
         : active === "hoy" ? <TodayPanel key={farm.id} farm={farm} userId={userId} manager={manager} />
         : active === "registro" ? <LogPanel key={farm.id} farm={farm} userId={userId} manager={manager} />
         : active === "terneros" ? <CalvesPanel key={farm.id} farm={farm} />
         : active === "tratamientos" ? <TreatmentsPanel key={farm.id} farm={farm} onGoProtocols={() => go("protocolos")} />
         : active === "indicadores" ? <IndicatorsPanel key={farm.id} farm={farm} />
         : active === "carga" ? <BulkImport key={farm.id} farm={farm} />
+        : active === "config" ? <FarmSettingsPanel key={farm.id + JSON.stringify(farm.settings ?? {})} farm={farm} firstTime={setupId === farm.id} onSaved={async () => { await loadFarms(); if (setupId === farm.id) { setSetupId(null); go("terneros"); } }} />
         : active === "protocolos" ? <ProtocolsPanel key={farm.id} farm={farm} />
         : <TeamPanel key={farm.id} farm={farm} userId={userId} />}
     </main>

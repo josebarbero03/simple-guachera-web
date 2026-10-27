@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, Check, CheckCircle2, ClipboardCheck, RefreshCw, ShieldPlus, Syringe, Undo2, X } from "lucide-react";
 import { addDays, ageDays, formatDate, today } from "../lib/calves";
+import { settingsOf } from "../lib/farmSettings";
 import { SEVERITY_ORDER, SEVERITY_STYLE } from "../lib/indicators";
 import { errorText, supabase } from "../lib/supabase";
 import { dayBounds, describePlanDays, formatTime } from "../lib/treatments";
@@ -16,7 +17,6 @@ type PlanDone = PlanApplication & { calf: { tag: string } | null; protocol: { na
 type Skipping = { kind: "dose"; dose: DoseRow } | { kind: "plan"; item: PlanItem };
 
 const SELECT = "*, calf:simple_guachera_calves(tag,location), treatment:simple_guachera_treatments(protocol_name,product,dose,route,diagnosis,severity,notes)";
-const PLAN_WINDOW = 14; // días que una aplicación del plan sigue apareciendo como atrasada después del último día del rango
 
 export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: string; manager: boolean }) {
   const [pending, setPending] = useState<DoseRow[] | null>(null);
@@ -27,6 +27,8 @@ export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: stri
   const [busy, setBusy] = useState<string | null>(null);
   const [skipping, setSkipping] = useState<Skipping | null>(null);
   const day = today();
+  // Días que una aplicación del plan sigue apareciendo como atrasada después del último día del rango.
+  const PLAN_WINDOW = settingsOf(farm).planLateDays;
   const { start, end } = dayBounds(day);
 
   const load = useCallback(async () => {
@@ -59,7 +61,7 @@ export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: stri
     setDone(d.data as DoseRow[]);
     setPlan(items);
     setPlanDone(todayApps.data as PlanDone[]);
-  }, [farm.id, start, end, day]);
+  }, [farm.id, start, end, day, PLAN_WINDOW]);
 
   useEffect(() => { void load(); }, [load]);
 

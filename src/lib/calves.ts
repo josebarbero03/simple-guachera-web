@@ -23,18 +23,19 @@ export function ageDays(birthDate: string, on = today()) {
   return daysBetween(birthDate, on);
 }
 
-export function categoryFor(days: number) {
+type CategoryRange = { name: string; minAgeDays: number; maxAgeDays: number };
+
+/** Categoría por edad según las categorías del establecimiento (o las de por defecto). Igual que simple_guachera_age_category. */
+export function categoryFor(days: number, cats: readonly CategoryRange[] = CATEGORIES) {
   if (days < 0) return "Sin nacer";
-  return CATEGORIES.find((c) => days >= c.minAgeDays && days <= c.maxAgeDays)?.name ?? "Fuera de recría";
+  return cats.find((c) => days >= c.minAgeDays && days <= c.maxAgeDays)?.name ?? "Fuera de rango";
 }
 
-export const CATEGORY_NAMES: string[] = CATEGORIES.map((c) => c.name);
-
 /** Categoría vigente: la asignada a mano o, si no hay, la que corresponde por edad. */
-export function effectiveCategory(calf: { birth_date: string; category?: string | null }, on = today()) {
-  const byAge = categoryFor(ageDays(calf.birth_date, on));
+export function effectiveCategory(calf: { birth_date: string; category?: string | null }, on = today(), cats: readonly CategoryRange[] = CATEGORIES) {
+  const byAge = categoryFor(ageDays(calf.birth_date, on), cats);
   const manual = calf.category ?? null;
-  const range = CATEGORIES.find((c) => c.name === manual);
+  const range = cats.find((c) => c.name === manual);
   // Aviso cuando el ternero ya superó la edad máxima de la categoría asignada.
   const overdue = !!range && ageDays(calf.birth_date, on) > range.maxAgeDays;
   return { name: manual ?? byAge, manual: manual !== null, byAge, overdue };

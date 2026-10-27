@@ -11,7 +11,8 @@ describe("edad y categoría", () => {
     expect(categoryFor(63)).toBe("Guachera");
     expect(categoryFor(64)).toBe("Acostumbramiento");
     expect(categoryFor(151)).toBe("Recría");
-    expect(categoryFor(301)).toBe("Fuera de recría");
+    expect(categoryFor(301)).toBe("Fuera de rango");
+    expect(categoryFor(66, [{ name: "Guachera", minAgeDays: 0, maxAgeDays: 70 }])).toBe("Guachera");
     expect(categoryFor(-1)).toBe("Sin nacer");
   });
   it("formatea edad y fecha", () => {

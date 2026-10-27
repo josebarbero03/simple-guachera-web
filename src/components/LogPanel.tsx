@@ -6,7 +6,7 @@ import { dayBounds, formatTime } from "../lib/treatments";
 import type { DailyLog, Farm } from "../lib/types";
 import { Button, Card, Empty, Field, Input, Textarea, toast } from "./ui";
 
-export const LOG_KINDS = ["Alimentación", "Iniciador", "Agua", "Limpieza de cama", "Calostrado", "Observación", "Otro"];
+import { settingsOf } from "../lib/farmSettings";
 
 type LogRow = DailyLog & { calf: { tag: string } | null };
 
@@ -14,7 +14,8 @@ export function LogPanel({ farm, userId, manager }: { farm: Farm; userId: string
   const [day, setDay] = useState(today());
   const [logs, setLogs] = useState<LogRow[] | null>(null);
   const [tags, setTags] = useState<{ id: string; tag: string }[]>([]);
-  const [kind, setKind] = useState(LOG_KINDS[0]);
+  const kinds = settingsOf(farm).logKinds;
+  const [kind, setKind] = useState(kinds[0]);
   const [tag, setTag] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -58,7 +59,7 @@ export function LogPanel({ farm, userId, manager }: { farm: Farm; userId: string
     <Card>
       <form onSubmit={submit} className="space-y-4">
         <div><p className="text-sm font-semibold text-slate-700">¿Qué se hizo?</p>
-          <div className="mt-2 flex flex-wrap gap-2">{LOG_KINDS.map((k) => <button key={k} type="button" onClick={() => setKind(k)} className={`rounded-full px-3 py-2 text-sm font-bold ${kind === k ? "bg-brand text-white" : "bg-slate-100 text-slate-700"}`}>{k}</button>)}</div>
+          <div className="mt-2 flex flex-wrap gap-2">{kinds.map((k) => <button key={k} type="button" onClick={() => setKind(k)} className={`rounded-full px-3 py-2 text-sm font-bold ${kind === k ? "bg-brand text-white" : "bg-slate-100 text-slate-700"}`}>{k}</button>)}</div>
         </div>
         <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
           <Field label="Ternero" hint="Opcional: dejar vacío si es para todos"><Input list="log-tags" value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Caravana" /></Field>

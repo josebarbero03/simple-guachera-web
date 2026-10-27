@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ArchiveRestore, Plus, Trash2 } from "lucide-react";
-import { CATEGORY_NAMES, ageDays, daysBetween, effectiveCategory, formatAge, formatDate, formatKg, parseNum, today, validateCalf } from "../lib/calves";
+import { ageDays, daysBetween, effectiveCategory, formatAge, formatDate, formatKg, parseNum, today, validateCalf } from "../lib/calves";
 import { SEVERITY_STYLE, tpiCategory } from "../lib/indicators";
 import { errorText, supabase } from "../lib/supabase";
 import { formatDateTime } from "../lib/treatments";
+import type { CategoryDef } from "../lib/farmSettings";
 import type { Calf, CalfInput, CategoryMove, ExitReason, PlanApplication, Treatment, Weight } from "../lib/types";
 import { Button, Field, Input, Modal, Select, Textarea, toast } from "./ui";
 
@@ -15,16 +16,16 @@ const TABS: { id: Tab; label: string }[] = [
 export const EXIT_REASONS: ExitReason[] = ["Muerte", "Venta", "Traslado", "Otro"];
 export const TPI_STYLE = { Excelente: "bg-emerald-600 text-white", Buena: "bg-emerald-100 text-emerald-800", Regular: "bg-amber-100 text-amber-900", Pobre: "bg-rose-600 text-white" };
 
-export function CalfDetail({ calf, onClose, onChanged }: { calf: Calf; onClose: () => void; onChanged: () => Promise<void> }) {
+export function CalfDetail({ calf, categories, onClose, onChanged }: { calf: Calf; categories: CategoryDef[]; onClose: () => void; onChanged: () => Promise<void> }) {
   const [tab, setTab] = useState<Tab>("datos");
   const days = ageDays(calf.birth_date);
   return <Modal title={`Ternero ${calf.tag}`} onClose={onClose}>
-    <p className="-mt-3 mb-3 text-sm text-slate-500">{calf.sex} · {formatAge(days)} · {calf.active ? `${effectiveCategory(calf).name}${calf.category ? "" : " (por edad)"}` : `Baja (${calf.exit_reason ?? "sin motivo"})`}</p>
+    <p className="-mt-3 mb-3 text-sm text-slate-500">{calf.sex} · {formatAge(days)} · {calf.active ? `${effectiveCategory(calf, undefined, categories).name}${calf.category ? "" : " (por edad)"}` : `Baja (${calf.exit_reason ?? "sin motivo"})`}</p>
     <div className="-mx-1 mb-4 flex gap-1 overflow-x-auto px-1 pb-1">
       {TABS.map((t) => <button key={t.id} onClick={() => setTab(t.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${tab === t.id ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>{t.label}</button>)}
     </div>
     {tab === "datos" ? <DataTab calf={calf} onSaved={onChanged} />
-      : tab === "categoria" ? <CategoryTab calf={calf} onSaved={onChanged} />
+      : tab === "categoria" ? <CategoryTab calf={calf} categories={categories} onSaved={onChanged} />
       : tab === "calostrado" ? <ColostrumTab calf={calf} onSaved={onChanged} />
       : tab === "pesadas" ? <WeightsTab calf={calf} />
       : tab === "sanidad" ? <HealthTab calf={calf} />
@@ -43,8 +44,8 @@ function SaveRow({ saving }: { saving: boolean }) {
   return <div className="flex justify-end pt-1"><Button type="submit" loading={saving}>Guardar</Button></div>;
 }
 
-function CategoryTab({ calf, onSaved }: { calf: Calf; onSaved: () => Promise<void> }) {
-  const cat = effectiveCategory(calf);
+function CategoryTab({ calf, categories, onSaved }: { calf: Calf; categories: CategoryDef[]; onSaved: () => Promise<void> }) {
+  const cat = effectiveCategory(calf, undefined, categories);
   const [moves, setMoves] = useState<CategoryMove[] | null>(null);
   const [target, setTarget] = useState(calf.category ?? "");
   const [date, setDate] = useState(today());
@@ -77,7 +78,7 @@ function CategoryTab({ calf, onSaved }: { calf: Calf; onSaved: () => Promise<voi
     {calf.active ? <form onSubmit={submit} className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Pasar a"><Select value={target} onChange={(e) => setTarget(e.target.value)}>
-          {CATEGORY_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {categories.map((c) => <option key={c.name} value={c.name}>{c.name} ({c.minAgeDays}–{c.maxAgeDays} días)</option>)}
           <option value="">Automática (según la edad)</option>
         </Select></Field>
         <Field label="Fecha"><Input type="date" min={calf.birth_date} max={today()} value={date} onChange={(e) => setDate(e.target.value)} required /></Field>

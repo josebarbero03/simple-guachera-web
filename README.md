@@ -18,8 +18,10 @@ Los datos y el ingreso usan Supabase (mismo proyecto que SInPLe Stock, tablas co
   (rojo grave, naranja moderado, verde leve, celeste plan sanitario). Se marcan aplicadas o no aplicadas (con motivo).
 - **Registro diario**: alimentación, iniciador, agua, limpieza de cama, calostrado, observaciones; por ternero o general.
 - **Protocolos**: de tratamiento (grupo de enfermedad, producto, dosis, vía, frecuencia, duración, retiro) y de
-  **plan sanitario por edad** (se aplica una vez a cada ternero al cumplir el día de vida indicado; aparece solo en Hoy).
+  **plan sanitario por edad** (se aplica una vez a cada ternero dentro de un rango de días de vida; aparece solo en Hoy).
 - **Tratamientos**: protocolo + gravedad a uno o varios terneros; se generan las dosis. Se cierran con resultado.
+- **Configuración por establecimiento** (al crearlo y desde Más → Configuración): categorías propias con su rango de días,
+  tipos de tareas del registro diario y días que el plan sanitario sigue mostrándose como atrasado.
 - **Categorías**: automática según la edad o asignada a mano (uno o varios terneros a la vez, con fecha e historial).
   Avisa cuando un ternero superó la edad de la categoría asignada.
 - **Terneros**: ficha con datos, calostrado e inmunidad pasiva, pesadas con ganancia diaria, historial sanitario,
