@@ -4,21 +4,33 @@ export const REPORTS_BUCKET = "simple-guachera-avisos";
 export const MAX_PHOTOS = 4;
 export const MAX_AUDIO_SECONDS = 120;
 
-/** Achica la foto (lado mayor 1600 px, JPEG) para que suba rápido con poca señal. */
-export async function compressImage(file: File, maxSide = 1600, quality = 0.8): Promise<Blob> {
+/**
+ * Achica la foto (lado menor ~1600 px, JPEG) para que suba rápido con poca señal.
+ * Se decodifica ya reducida: abrir entera una foto de 50 MP puede agotar la memoria del celular.
+ */
+export async function compressImage(file: Blob, maxSide = 1600, quality = 0.8): Promise<Blob> {
   try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    const bitmap = await createImageBitmap(file, { resizeWidth: maxSide, resizeQuality: "medium" });
+    const blob = await bitmapToJpeg(bitmap, maxSide, quality);
     return blob ?? file;
   } catch {
     return file; // formatos que el navegador no puede leer (ej. HEIC) se suben tal cual
   }
+}
+
+/** Dibuja una imagen o un cuadro de video en un lienzo de a lo sumo maxSide de lado y lo pasa a JPEG. */
+export async function bitmapToJpeg(source: ImageBitmap | HTMLVideoElement, maxSide = 1600, quality = 0.8) {
+  const width = source instanceof HTMLVideoElement ? source.videoWidth : source.width;
+  const height = source instanceof HTMLVideoElement ? source.videoHeight : source.height;
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  canvas.getContext("2d")!.drawImage(source, 0, 0, canvas.width, canvas.height);
+  if (!(source instanceof HTMLVideoElement)) source.close();
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  canvas.width = canvas.height = 0; // libera la memoria del lienzo enseguida
+  return blob;
 }
 
 /** Tipo de archivo sin parámetros (ej. "audio/webm;codecs=opus" → "audio/webm"). */

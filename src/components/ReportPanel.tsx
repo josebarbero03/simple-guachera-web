@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Camera, CheckCircle2, Clock, Mic, Send, Square, Trash2, X } from "lucide-react";
+import { Camera, CheckCircle2, Clock, ImagePlus, Mic, Send, Square, Trash2, X } from "lucide-react";
 import { MAX_AUDIO_SECONDS, MAX_PHOTOS, REPORTS_BUCKET, baseMime, compressImage, extensionFor, useRecorder } from "../lib/media";
 import { errorText, supabase } from "../lib/supabase";
 import { formatDateTime } from "../lib/treatments";
 import type { Attachment, Farm, Report } from "../lib/types";
+import { CameraModal } from "./CameraModal";
 import { ReportAttachments } from "./ReportAttachments";
 import { Button, Card, Empty, Field, Input, Textarea, toast } from "./ui";
 
@@ -22,6 +23,8 @@ export function ReportPanel({ farm, userId }: { farm: Farm; userId: string }) {
   const audio = useRecorder();
   const audioUrl = useObjectUrl(audio.blob);
   const fileInput = useRef<HTMLInputElement>(null);
+  const phoneCamera = useRef<HTMLInputElement>(null);
+  const [camera, setCamera] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("simple_guachera_reports").select("*, calf:simple_guachera_calves(tag)").eq("farm_id", farm.id).eq("created_by", userId).order("created_at", { ascending: false }).limit(20);
@@ -32,15 +35,21 @@ export function ReportPanel({ farm, userId }: { farm: Farm; userId: string }) {
   useEffect(() => {
     void supabase.from("simple_guachera_calves").select("id,tag").eq("farm_id", farm.id).eq("active", true).order("tag").then(({ data }) => setTags((data ?? []) as { id: string; tag: string }[]));
   }, [farm.id]);
-  useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), [photos]);
+  // Liberar las vistas previas solo al salir de la pantalla (no en cada cambio, o se rompen las miniaturas).
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
 
   async function addPhotos(event: ChangeEvent<HTMLInputElement>) {
     const files = [...(event.target.files ?? [])];
     event.target.value = "";
     const room = MAX_PHOTOS - photos.length;
     if (files.length > room) toast.error(`Máximo ${MAX_PHOTOS} fotos por aviso.`);
-    const added = await Promise.all(files.slice(0, room).map(async (f) => { const blob = await compressImage(f); return { blob, url: URL.createObjectURL(blob) }; }));
-    setPhotos((list) => [...list, ...added]);
+    // De a una, para no tener varias fotos grandes abiertas a la vez en memoria.
+    for (const f of files.slice(0, room)) {
+      const blob = await compressImage(f);
+      setPhotos((list) => [...list, { blob, url: URL.createObjectURL(blob) }]);
+    }
   }
 
   async function submit(event: FormEvent) {
@@ -93,17 +102,21 @@ export function ReportPanel({ farm, userId }: { farm: Farm; userId: string }) {
 
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => fileInput.current?.click()} disabled={photos.length >= MAX_PHOTOS}><Camera />Sacar foto</Button>
+            <Button type="button" variant="secondary" onClick={() => setCamera(true)} disabled={photos.length >= MAX_PHOTOS}><Camera />Sacar foto</Button>
+            <Button type="button" variant="ghost" onClick={() => fileInput.current?.click()} disabled={photos.length >= MAX_PHOTOS}><ImagePlus />Galería</Button>
             {audio.supported ? (audio.recording
               ? <Button type="button" variant="danger" onClick={audio.stop}><Square />Detener · {formatSeconds(audio.seconds)}</Button>
               : <Button type="button" variant="secondary" onClick={() => void audio.start()}><Mic />{audio.blob ? "Grabar de nuevo" : "Grabar audio"}</Button>) : null}
           </div>
-          <input ref={fileInput} type="file" accept="image/*" capture="environment" multiple onChange={(e) => void addPhotos(e)} className="hidden" aria-label="Agregar fotos" />
+          <input ref={fileInput} type="file" accept="image/*" multiple onChange={(e) => void addPhotos(e)} className="hidden" aria-label="Agregar fotos" />
+          <input ref={phoneCamera} type="file" accept="image/*" capture="environment" onChange={(e) => void addPhotos(e)} className="hidden" aria-label="Cámara del teléfono" />
+          {camera ? <CameraModal remaining={MAX_PHOTOS - photos.length} onClose={() => setCamera(false)} onFallback={() => { setCamera(false); phoneCamera.current?.click(); }}
+            onShot={(blob) => setPhotos((list) => list.length >= MAX_PHOTOS ? list : [...list, { blob, url: URL.createObjectURL(blob) }])} /> : null}
           {audio.error ? <p className="text-sm text-rose-600">{audio.error}</p> : null}
           {audio.recording ? <p className="flex items-center gap-2 text-sm font-semibold text-rose-600"><span className="size-2.5 animate-pulse rounded-full bg-rose-600" />Grabando… (máximo {MAX_AUDIO_SECONDS / 60} minutos)</p> : null}
           {photos.length ? <div className="flex flex-wrap gap-2">{photos.map((p, i) => <div key={p.url} className="relative">
             <img src={p.url} alt={`Foto ${i + 1}`} className="size-24 rounded-xl object-cover" />
-            <button type="button" onClick={() => setPhotos((list) => list.filter((x) => x !== p))} className="absolute -right-2 -top-2 grid size-7 place-items-center rounded-full bg-ink text-white shadow" aria-label={`Quitar foto ${i + 1}`}><X className="size-4" /></button>
+            <button type="button" onClick={() => { URL.revokeObjectURL(p.url); setPhotos((list) => list.filter((x) => x !== p)); }} className="absolute -right-2 -top-2 grid size-7 place-items-center rounded-full bg-ink text-white shadow" aria-label={`Quitar foto ${i + 1}`}><X className="size-4" /></button>
           </div>)}</div> : null}
           {audioUrl ? <div className="flex items-center gap-2"><audio controls src={audioUrl} className="w-full max-w-sm" /><button type="button" onClick={audio.reset} className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600" aria-label="Borrar audio"><Trash2 className="size-4" /></button></div> : null}
         </div>
