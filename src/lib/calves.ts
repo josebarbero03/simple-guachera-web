@@ -13,6 +13,12 @@ export function daysBetween(from: string, to: string) {
   return Math.floor((Date.parse(to.slice(0, 10) + "T12:00:00Z") - Date.parse(from.slice(0, 10) + "T12:00:00Z")) / 86_400_000);
 }
 
+export function addDays(day: string, days: number) {
+  const d = new Date(day.slice(0, 10) + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export function ageDays(birthDate: string, on = today()) {
   return daysBetween(birthDate, on);
 }
@@ -36,6 +42,12 @@ export function formatDate(value: string) {
 
 export function formatKg(value: number) {
   return `${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 }).format(value)} kg`;
+}
+
+/** Número escrito a mano: acepta coma decimal; vacío = null; texto inválido = NaN. */
+export function parseNum(value: string): number | null {
+  const v = value.trim().replace(",", ".");
+  return v ? Number(v) : null;
 }
 
 export function validateCalf(input: { tag: string; birth_date: string; birth_weight: number | null }, on = today()) {

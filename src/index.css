@@ -10,6 +10,7 @@
   --color-ink: #10231d;
 }
 
-html, body { background: var(--color-canvas); color: var(--color-ink); }
-body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-input, select, textarea, button { font: inherit; }
+@layer base {
+  html, body { background: var(--color-canvas); color: var(--color-ink); }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+}

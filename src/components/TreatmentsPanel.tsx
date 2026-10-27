@@ -3,7 +3,8 @@ import { CheckSquare, Plus, Search, Square, Stethoscope, Trash2 } from "lucide-r
 import { formatDate } from "../lib/calves";
 import { errorText, supabase } from "../lib/supabase";
 import { describeSchedule, doseCount, formatDateTime, localInputToIso, nowLocalInput, progress } from "../lib/treatments";
-import type { Calf, Dose, Farm, Treatment } from "../lib/types";
+import { SEVERITY_STYLE } from "../lib/indicators";
+import type { Calf, Dose, Farm, Severity, Treatment } from "../lib/types";
 import { useProtocols } from "./ProtocolsPanel";
 import { Button, Empty, Field, Input, Modal, Select, Textarea, toast } from "./ui";
 
@@ -46,9 +47,9 @@ export function TreatmentsPanel({ farm, onGoProtocols }: { farm: Farm; onGoProto
       : !rows.length ? <Empty icon={<Stethoscope />} title={view === "Activo" ? "No hay tratamientos activos" : "Sin tratamientos finalizados"} text={view === "Activo" ? "Indicá un tratamiento eligiendo un protocolo y uno o varios terneros." : "Los tratamientos cerrados aparecen acá."} />
       : <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">{rows.map((t) => {
         const p = progress(t.doses);
-        return <li key={t.id} className="min-w-0 rounded-2xl border border-[#dce5e1] bg-white p-4 shadow-[0_4px_16px_rgba(15,76,58,.05)]">
+        return <li key={t.id} className={`min-w-0 rounded-2xl border bg-white p-4 shadow-[0_4px_16px_rgba(15,76,58,.05)] ${t.status === "Activo" ? SEVERITY_STYLE[t.severity ?? "Leve"].card : "border-[#dce5e1]"}`}>
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0"><p className="text-xl font-black">{t.calf?.tag ?? "—"}</p><p className="font-bold text-brand-dark">{t.protocol_name}</p></div>
+            <div className="min-w-0"><p className="flex items-center gap-2"><span className="text-xl font-black">{t.calf?.tag ?? "—"}</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-black uppercase ${SEVERITY_STYLE[t.severity ?? "Leve"].badge}`}>{t.severity ?? "Leve"}</span></p><p className="font-bold text-brand-dark">{t.protocol_name}</p></div>
             {t.status === "Finalizado" ? <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${t.outcome === "Recuperado" ? "bg-brand-soft text-brand-dark" : t.outcome === "Muerte" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"}`}>{t.outcome}</span> : null}
           </div>
           <p className="text-sm text-slate-600">{t.product}{t.dose ? ` · ${t.dose}` : ""}{t.route ? ` · ${t.route}` : ""}</p>
@@ -70,7 +71,7 @@ export function TreatmentsPanel({ farm, onGoProtocols }: { farm: Farm; onGoProto
 
 function NewTreatment({ farm, onClose, onSaved, onGoProtocols }: { farm: Farm; onClose: () => void; onSaved: () => Promise<void>; onGoProtocols: () => void }) {
   const { protocols } = useProtocols(farm.id);
-  const active = useMemo(() => (protocols ?? []).filter((p) => p.active), [protocols]);
+  const active = useMemo(() => (protocols ?? []).filter((p) => p.active && p.kind === "Tratamiento"), [protocols]);
   const [calves, setCalves] = useState<Pick<Calf, "id" | "tag" | "location">[]>([]);
   const [protocolId, setProtocolId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -78,6 +79,7 @@ function NewTreatment({ farm, onClose, onSaved, onGoProtocols }: { farm: Farm; o
   const [start, setStart] = useState(nowLocalInput());
   const [diagnosis, setDiagnosis] = useState("");
   const [notes, setNotes] = useState("");
+  const [severity, setSeverity] = useState<Severity>("Leve");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -95,7 +97,7 @@ function NewTreatment({ farm, onClose, onSaved, onGoProtocols }: { farm: Farm; o
     if (!protocol) { toast.error("Elegí un protocolo."); return; }
     if (!selected.size) { toast.error("Elegí al menos un ternero."); return; }
     setSaving(true);
-    const { data, error } = await supabase.rpc("simple_guachera_start_treatment", { target_farm: farm.id, calf_ids: [...selected], protocol: protocol.id, start_at: localInputToIso(start), diagnosis: diagnosis.trim() || protocol.name, treatment_notes: notes.trim() });
+    const { data, error } = await supabase.rpc("simple_guachera_start_treatment", { target_farm: farm.id, calf_ids: [...selected], protocol: protocol.id, start_at: localInputToIso(start), diagnosis: diagnosis.trim() || protocol.name, treatment_notes: notes.trim(), severity });
     setSaving(false);
     if (error) { toast.error(errorText(error, "No se pudo indicar el tratamiento")); return; }
     toast.ok(data === 1 ? "Tratamiento indicado" : `Tratamiento indicado a ${data} terneros`);
@@ -112,8 +114,12 @@ function NewTreatment({ farm, onClose, onSaved, onGoProtocols }: { farm: Farm; o
       <Field label="Protocolo"><Select value={protocolId} onChange={(e) => setProtocolId(e.target.value)}>{active.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.product}</option>)}</Select></Field>
       {protocol ? <p className="-mt-2 rounded-xl bg-brand-soft px-3 py-2 text-sm font-semibold text-brand-dark">{protocol.dose ? `${protocol.dose} · ` : ""}{protocol.route ? `${protocol.route} · ` : ""}{describeSchedule(protocol.interval_hours, protocol.duration_days)}</p> : null}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Primera dosis"><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required /></Field>
+        <Field label="Primera dosis" hint="Hora de Argentina"><Input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required /></Field>
         <Field label="Diagnóstico" hint="Opcional"><Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} placeholder={protocol?.name} /></Field>
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-slate-700">Gravedad <span className="font-normal text-slate-500">(el operario lo ve con este color)</span></p>
+        <div className="mt-1.5 grid grid-cols-3 gap-2">{(["Leve", "Moderado", "Grave"] as const).map((s) => <button key={s} type="button" onClick={() => setSeverity(s)} className={`flex items-center justify-center gap-2 rounded-xl border-2 px-2 py-2.5 text-sm font-bold ${severity === s ? "border-ink bg-white" : "border-transparent bg-slate-100 text-slate-600"}`}><span className={`size-3 rounded-full ${SEVERITY_STYLE[s].dot}`} />{s}</button>)}</div>
       </div>
       <div>
         <div className="flex items-center justify-between"><p className="text-sm font-semibold text-slate-700">Terneros <span className="text-brand">({selected.size} elegidos)</span></p>

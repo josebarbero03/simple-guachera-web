@@ -9,9 +9,20 @@ export type Calf = {
   location: string;
   notes: string;
   active: boolean;
+  colostrum_liters: number | null;
+  colostrum_brix: number | null;
+  colostrum_hours: number | null;
+  serum_tp: number | null;
+  serum_brix: number | null;
+  weaning_date: string | null;
+  weaning_weight: number | null;
+  exit_date: string | null;
+  exit_reason: ExitReason | null;
+  exit_cause: string;
   created_at: string;
   updated_at: string;
 };
+export type ExitReason = "Muerte" | "Venta" | "Traslado" | "Otro";
 export type CalfInput = Pick<Calf, "tag" | "sex" | "birth_date" | "birth_weight" | "location" | "notes">;
 
 export type Role = "propietario" | "productor" | "veterinario" | "operario";
@@ -29,7 +40,12 @@ export type Protocol = {
   withdrawal_days: number;
   notes: string;
   active: boolean;
+  kind: "Tratamiento" | "Plan sanitario";
+  disease_group: DiseaseGroup;
+  age_day: number | null;
 };
+export type DiseaseGroup = "Diarrea" | "Respiratoria" | "Ombligo" | "Otra" | "Preventivo";
+export type Severity = "Leve" | "Moderado" | "Grave";
 export type DoseStatus = "Pendiente" | "Aplicada" | "No aplicada" | "Cancelada";
 export type Dose = {
   id: string;
@@ -61,5 +77,9 @@ export type Treatment = {
   outcome: "Recuperado" | "Sin respuesta" | "Muerte" | "Otro" | null;
   notes: string;
   closed_at: string | null;
+  disease_group: DiseaseGroup;
+  severity: Severity;
 };
+export type Weight = { id: string; farm_id: string; calf_id: string; weighed_at: string; weight: number; notes: string };
+export type PlanApplication = { id: string; farm_id: string; calf_id: string; protocol_id: string; status: "Aplicada" | "No aplicada"; done_at: string; done_by: string | null; done_by_name: string; notes: string };
 export type DailyLog = { id: string; farm_id: string; calf_id: string | null; kind: string; notes: string; done_at: string; created_by: string; author_name: string };

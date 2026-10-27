@@ -14,12 +14,19 @@ Los datos y el ingreso usan Supabase (mismo proyecto que SInPLe Stock, tablas co
 | Productor / Veterinario | Todo lo de gestión: terneros (alta y carga masiva), protocolos, tratamientos, equipo. |
 | Operario | **Hoy** (dosis del día: aplicada / no aplicada) y **Registro** (tareas diarias). Nada más. |
 
-- **Hoy**: dosis pendientes y atrasadas; se marcan como aplicadas o no aplicadas (con motivo), con quién y a qué hora.
+- **Hoy**: dosis de tratamientos y aplicaciones del plan sanitario del día, con color según gravedad
+  (rojo grave, naranja moderado, verde leve, celeste plan sanitario). Se marcan aplicadas o no aplicadas (con motivo).
 - **Registro diario**: alimentación, iniciador, agua, limpieza de cama, calostrado, observaciones; por ternero o general.
-- **Protocolos**: producto, dosis, vía, cada cuántas horas, cuántos días y retiro.
-- **Tratamientos**: se indica un protocolo a uno o varios terneros a la vez y se generan solas todas las dosis.
-  Se cierran con resultado (Recuperado, Sin respuesta, Muerte, Otro) y las dosis pendientes se cancelan.
-- **Terneros**: alta, edición, baja, búsqueda, categoría por edad y **carga masiva** pegando desde Excel o subiendo un CSV.
+- **Protocolos**: de tratamiento (grupo de enfermedad, producto, dosis, vía, frecuencia, duración, retiro) y de
+  **plan sanitario por edad** (se aplica una vez a cada ternero al cumplir el día de vida indicado; aparece solo en Hoy).
+- **Tratamientos**: protocolo + gravedad a uno o varios terneros; se generan las dosis. Se cierran con resultado.
+- **Terneros**: ficha con datos, calostrado e inmunidad pasiva, pesadas con ganancia diaria, historial sanitario,
+  destete y baja (motivo y causa).
+- **Indicadores**: mortalidad 1–60 días, morbilidad por diarrea y respiratoria, retratamientos, recuperados, dosis aplicadas,
+  inmunidad pasiva, calostrado, ganancia diaria y destete, con semáforo según metas de referencia
+  (DCHA Gold Standards, Lombard et al. 2020, INIA). Período elegible.
+- **Carga masiva** (pegar desde Excel o subir CSV, con plantilla y vista previa de errores): terneros, pesadas,
+  tratamientos, calostrado/sangre, destete y bajas.
 - **Equipo**: sumar personas por email con su rol. Si todavía no tienen cuenta, quedan invitadas y entran solas al registrarse.
 
 Lo que puede ver y hacer cada rol se controla en la base de datos (RLS y funciones en `supabase/migrations/`),
@@ -28,7 +35,7 @@ no solo en la pantalla.
 ## Puesta en marcha (una sola vez)
 
 1. **Base de datos**: en Supabase → SQL Editor, pegar y ejecutar en orden cada archivo de `supabase/migrations/`
-   (`0001_base.sql`, `0002_roles_tratamientos.sql`, …). Se pueden volver a ejecutar sin romper nada.
+   (`0001_base.sql`, `0002_roles_tratamientos.sql`, `0003_pesadas_indicadores.sql`, …). Se pueden volver a ejecutar sin romper nada.
 2. **URL de la app en Supabase**: Authentication → URL Configuration → agregar la dirección donde se publique
    la app (por ejemplo `https://josebarbero03.github.io/simple-guachera-web/`) en *Redirect URLs*,
    para que funcionen los enlaces de confirmación y de recuperación de contraseña.
@@ -56,7 +63,8 @@ Otro proyecto de Supabase: copiar `.env.example` a `.env.local` y cambiar los va
 - `src/components/CalvesPanel.tsx` y `BulkCalvesModal.tsx`: terneros y carga masiva.
 - `src/components/ProtocolsPanel.tsx`, `TreatmentsPanel.tsx`: protocolos y tratamientos.
 - `src/components/TeamPanel.tsx`: equipo, roles e invitaciones.
-- `src/lib/roles.ts`, `treatments.ts`, `bulk.ts`: reglas de roles, dosis y carga masiva.
+- `src/components/CalfDetail.tsx`: ficha del ternero. `IndicatorsPanel.tsx`: indicadores. `BulkImport.tsx`: carga masiva.
+- `src/lib/roles.ts`, `treatments.ts`, `bulk.ts`, `indicators.ts`: reglas de roles, dosis, carga masiva e indicadores (con pruebas).
 - `src/lib/calves.ts`: edad, categorías y validaciones (con pruebas en `tests/`).
 - `supabase/migrations/`: tablas y reglas de seguridad (RLS). Cada cambio de base va en un archivo nuevo numerado.
 - `public/`: íconos, `manifest.webmanifest` y `sw.js` (permite instalarla y abrirla sin señal).

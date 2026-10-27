@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Building2, CalendarCheck, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
+import { Building2, CalendarCheck, ChartColumn, Upload, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
 import { AuthScreen, Brand } from "./components/AuthScreen";
 import { CalvesPanel } from "./components/CalvesPanel";
+import { BulkImport } from "./components/BulkImport";
 import { FarmsPanel } from "./components/FarmsPanel";
+import { IndicatorsPanel } from "./components/IndicatorsPanel";
 import { LogPanel } from "./components/LogPanel";
 import { ProtocolsPanel } from "./components/ProtocolsPanel";
 import { TeamPanel } from "./components/TeamPanel";
@@ -40,7 +42,7 @@ export function App() {
   </>;
 }
 
-type Tab = "hoy" | "registro" | "terneros" | "tratamientos" | "protocolos" | "equipo" | "establecimientos" | "mas";
+type Tab = "hoy" | "registro" | "terneros" | "tratamientos" | "indicadores" | "carga" | "protocolos" | "equipo" | "establecimientos" | "mas";
 type TabDef = { id: Tab; label: string; short?: string; icon: React.ReactNode };
 
 const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
@@ -48,16 +50,18 @@ const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
   registro: { id: "registro", label: "Registro", icon: <ClipboardList /> },
   terneros: { id: "terneros", label: "Terneros", icon: <Milk /> },
   tratamientos: { id: "tratamientos", label: "Tratamientos", short: "Tratam.", icon: <Stethoscope /> },
+  indicadores: { id: "indicadores", label: "Indicadores", short: "Indicad.", icon: <ChartColumn /> },
+  carga: { id: "carga", label: "Carga masiva", icon: <Upload /> },
   protocolos: { id: "protocolos", label: "Protocolos", icon: <FileText /> },
   equipo: { id: "equipo", label: "Equipo", icon: <Users /> },
   establecimientos: { id: "establecimientos", label: "Establecimientos", icon: <Building2 /> },
 };
-const MANAGER_TABS: Tab[] = ["hoy", "terneros", "tratamientos", "registro", "protocolos", "equipo", "establecimientos"];
+const MANAGER_TABS: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "registro", "carga", "protocolos", "equipo", "establecimientos"];
 // El operario solo ve lo del día; cambia de establecimiento desde el selector de arriba.
 const OPERATOR_TABS: Tab[] = ["hoy", "registro"];
 // En el celular la barra inferior muestra 4 accesos + "Más".
-const MANAGER_MOBILE: Tab[] = ["hoy", "terneros", "tratamientos", "registro", "mas"];
-const MORE_TABS: Tab[] = ["protocolos", "equipo", "establecimientos"];
+const MANAGER_MOBILE: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "mas"];
+const MORE_TABS: Tab[] = ["registro", "carga", "protocolos", "equipo", "establecimientos"];
 
 function Shell({ session }: { session: Session }) {
   const userId = session.user.id;
@@ -126,6 +130,8 @@ function Shell({ session }: { session: Session }) {
         : active === "registro" ? <LogPanel key={farm.id} farm={farm} userId={userId} manager={manager} />
         : active === "terneros" ? <CalvesPanel key={farm.id} farm={farm} />
         : active === "tratamientos" ? <TreatmentsPanel key={farm.id} farm={farm} onGoProtocols={() => go("protocolos")} />
+        : active === "indicadores" ? <IndicatorsPanel key={farm.id} farm={farm} />
+        : active === "carga" ? <BulkImport key={farm.id} farm={farm} />
         : active === "protocolos" ? <ProtocolsPanel key={farm.id} farm={farm} />
         : <TeamPanel key={farm.id} farm={farm} userId={userId} />}
     </main>

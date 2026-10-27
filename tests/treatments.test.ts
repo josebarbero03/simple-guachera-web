@@ -65,3 +65,46 @@ describe("carga masiva", () => {
     expect(rows[0].value).toMatchObject({ tag: "A1", sex: "Macho", birth_weight: 39.5, location: "Corral 1" });
   });
 });
+
+import { parseColostrum, parseExits, parseTreatments, parseWeaning, parseWeights, splitTable } from "../src/lib/bulk";
+
+describe("carga masiva de registros", () => {
+  const on = "2026-10-27";
+  const calves = [
+    { id: "c1", tag: "2418", birth_date: "2026-10-01", active: true },
+    { id: "old", tag: "2419", birth_date: "2025-01-01", active: false },
+    { id: "c2", tag: "2419", birth_date: "2026-10-05", active: true },
+    { id: "gone", tag: "9000", birth_date: "2026-09-01", active: false },
+  ];
+  it("saltea encabezado y prefiere el ternero activo con caravana repetida", () => {
+    expect(splitTable("Caravana;Fecha;Peso\n2418;20/10/2026;45").length).toBe(1);
+    expect(parseWeights("2419\t20/10/2026\t44", calves, on)[0].value?.calf_id).toBe("c2");
+  });
+  it("pesadas: valida fecha, peso, caravana y repetidas", () => {
+    const r = parseWeights("2418;20/10/2026;45,5\n2418;20/10/2026;46\n2418;25/09/2026;40\n7777;20/10/2026;40\n2419;21/10/2026;abc", calves, on);
+    expect(r[0].value).toEqual({ calf_id: "c1", weighed_at: "2026-10-20", weight: 45.5 });
+    expect(r.slice(1).map((x) => x.error)).toEqual(["Fila repetida en la lista", "La fecha debe estar entre el nacimiento y hoy", "No existe un ternero con caravana 7777", 'Peso "abc" no válido']);
+  });
+  it("calostrado acepta columnas vacías y valida rangos", () => {
+    const r = parseColostrum("2418;4;24;1;6,3;\n2419;;;;;9,1\n2418;20", calves);
+    expect(r[0].value).toMatchObject({ colostrum_liters: 4, colostrum_brix: 24, serum_tp: 6.3, serum_brix: null });
+    expect(r[1].value).toMatchObject({ serum_brix: 9.1, colostrum_liters: null });
+    expect(r[2].error).toMatch(/Litros|repetida/);
+  });
+  it("tratamientos: protocolo por nombre, hora y gravedad por defecto", () => {
+    const protocols = [{ id: "p1", name: "Diarrea", kind: "Tratamiento", active: true }, { id: "v", name: "Vacuna", kind: "Plan sanitario", active: true }];
+    const r = parseTreatments("2418;diarrea;20/10/2026\n2419;Diarrea;21/10/2026;18:30;grave;Deshidratado\n2418;Vacuna;20/10/2026\n9000;Diarrea;20/10/2026\n2418;Diarrea;20/10/2026;9:00;urgente", calves, protocols, on);
+    expect(r[0].value).toEqual({ calf_id: "c1", protocol_id: "p1", start_at: "2026-10-20T11:00:00.000Z", severity: "Leve", diagnosis: "" });
+    expect(r[1].value).toMatchObject({ severity: "Grave", diagnosis: "Deshidratado", start_at: "2026-10-21T21:30:00.000Z" });
+    expect(r[2].error).toMatch(/protocolo/);
+    expect(r[3].error).toMatch(/baja/);
+    expect(r[4].error).toMatch(/Gravedad/);
+  });
+  it("bajas y destete", () => {
+    const e = parseExits("2418;26/10/2026;muerte;Neumonía\n2419;26/10/2026;robo", calves, on);
+    expect(e[0].value).toEqual({ id: "c1", exit_date: "2026-10-26", exit_reason: "Muerte", exit_cause: "Neumonía" });
+    expect(e[1].error).toMatch(/Motivo/);
+    const w = parseWeaning("2418;26/10/2026;80\n2419;26/10/2026", calves, on);
+    expect(w.map((x) => x.value?.weaning_weight)).toEqual([80, null]);
+  });
+});
