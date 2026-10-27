@@ -135,7 +135,7 @@ export function OperatorHome({ farm, userId, userName }: { farm: Farm; userId: s
       <div className="grid gap-2">{SKIP_REASONS.map((r) => <button key={r} onClick={() => { const task = skipping; setSkipping(null); void markDone(task, "No aplicada", r); }} className="rounded-2xl bg-slate-100 px-4 py-4 text-left text-lg font-bold active:bg-slate-200">{r}</button>)}</div>
     </Modal> : null}
     {sheet === "avisar" ? <ReportWizard farm={farm} pendingTags={new Set([...now, ...later].map((x) => x.tag))} onClose={() => setSheet(null)} /> : null}
-    {sheet === "anotar" ? <QuickLog farm={farm} onClose={() => setSheet(null)} /> : null}
+    {sheet === "anotar" ? <QuickLog farm={farm} pendingTags={new Set([...now, ...later].map((x) => x.tag))} onClose={() => setSheet(null)} /> : null}
   </div>;
 }
 
@@ -173,6 +173,34 @@ function DoneRow({ tag, what, ok, at, canUndo, onUndo }: { tag: string; what: st
   </li>;
 }
 
+type CalfOption = { id: string; tag: string };
+
+/** Grilla de caravanas grandes con búsqueda por número. Con `selected` permite elegir varios. */
+function CalfGrid({ calves, pendingTags, selected, onPick }: { calves: CalfOption[] | null; pendingTags: Set<string>; selected?: Set<string>; onPick: (calf: CalfOption) => void }) {
+  const [search, setSearch] = useState("");
+  const list = (calves ?? []).filter((c) => !search.trim() || c.tag.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort((a, b) => Number(pendingTags.has(b.tag)) - Number(pendingTags.has(a.tag)) || a.tag.localeCompare(b.tag, "es", { numeric: true }));
+  return <>
+    <div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} inputMode="numeric" placeholder="Buscar número" className="h-16 w-full rounded-2xl border-2 border-[#cedad5] bg-white pl-14 pr-4 text-2xl font-bold outline-none focus:border-brand" aria-label="Buscar número de caravana" /></div>
+    {calves === null ? <p className="text-lg text-slate-500">Cargando…</p> : <div className="grid grid-cols-3 gap-2">
+      {list.slice(0, 90).map((c) => { const on = selected?.has(c.id) ?? false; return <button key={c.id} onClick={() => onPick(c)} aria-pressed={selected ? on : undefined}
+        className={`relative h-16 rounded-2xl border-4 text-2xl font-black shadow-sm ${on ? "border-brand bg-brand-soft text-brand-dark" : "border-transparent bg-white active:bg-brand-soft"}`}>
+        {c.tag}{on ? <Check className="absolute left-1.5 top-1.5 size-4 text-brand" /> : null}{pendingTags.has(c.tag) ? <span className="absolute right-2 top-2 size-2.5 rounded-full bg-rose-500" /> : null}
+      </button>; })}
+      {!list.length ? <p className="col-span-3 text-lg text-slate-500">No hay un ternero con ese número.</p> : null}
+    </div>}
+  </>;
+}
+
+/** Terneros activos del establecimiento (para elegir caravana). */
+function useCalfOptions(farmId: string) {
+  const [calves, setCalves] = useState<CalfOption[] | null>(null);
+  useEffect(() => {
+    void supabase.from("simple_guachera_calves").select("id,tag").eq("farm_id", farmId).eq("active", true).order("tag").then(({ data }) => setCalves((data ?? []) as CalfOption[]));
+  }, [farmId]);
+  return calves;
+}
+
 const SYMPTOM_ICON: Record<SymptomId, React.ReactNode> = {
   diarrea: <Droplets />, respira: <Wind />, notoma: <Milk />, caido: <TriangleAlert />, decaido: <Frown />, ombligo: <CircleDot />, lastimado: <Bandage />, otro: <CircleHelp />,
 };
@@ -180,9 +208,8 @@ const SYMPTOM_ICON: Record<SymptomId, React.ReactNode> = {
 /** Avisar un problema en tres pasos: ternero → qué le pasa → foto o audio. */
 function ReportWizard({ farm, pendingTags, onClose }: { farm: Farm; pendingTags: Set<string>; onClose: () => void }) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [calves, setCalves] = useState<{ id: string; tag: string }[] | null>(null);
-  const [search, setSearch] = useState("");
-  const [calf, setCalf] = useState<{ id: string; tag: string } | null>(null);
+  const calves = useCalfOptions(farm.id);
+  const [calf, setCalf] = useState<CalfOption | null>(null);
   const [symptoms, setSymptoms] = useState<SymptomId[]>([]);
   const [urgentManual, setUrgentManual] = useState(false);
   const [photos, setPhotos] = useState<Blob[]>([]);
@@ -194,12 +221,6 @@ function ReportWizard({ farm, pendingTags, onClose }: { farm: Farm; pendingTags:
   const audioUrl = useObjectUrl(audio.blob);
   const urgent = isUrgent(symptoms) || urgentManual;
 
-  useEffect(() => {
-    void supabase.from("simple_guachera_calves").select("id,tag").eq("farm_id", farm.id).eq("active", true).order("tag").then(({ data }) => setCalves((data ?? []) as { id: string; tag: string }[]));
-  }, [farm.id]);
-
-  const list = (calves ?? []).filter((c) => !search.trim() || c.tag.toLowerCase().includes(search.trim().toLowerCase()))
-    .sort((a, b) => Number(pendingTags.has(b.tag)) - Number(pendingTags.has(a.tag)) || a.tag.localeCompare(b.tag, "es", { numeric: true }));
 
   async function send() {
     if (audio.recording) audio.stop();
@@ -221,11 +242,7 @@ function ReportWizard({ farm, pendingTags, onClose }: { farm: Farm; pendingTags:
 
       {step === 1 ? <>
         <h2 className="text-3xl font-black">¿Qué ternero?</h2>
-        <div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 size-6 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} inputMode="numeric" placeholder="Buscar número" className="h-16 w-full rounded-2xl border-2 border-[#cedad5] bg-white pl-14 pr-4 text-2xl font-bold outline-none focus:border-brand" aria-label="Buscar número de caravana" /></div>
-        {calves === null ? <p className="text-lg text-slate-500">Cargando…</p> : <div className="grid grid-cols-3 gap-2">
-          {list.slice(0, 60).map((c) => <button key={c.id} onClick={() => { setCalf(c); setStep(2); }} className="relative h-16 rounded-2xl bg-white text-2xl font-black shadow-sm active:bg-brand-soft">{c.tag}{pendingTags.has(c.tag) ? <span className="absolute right-2 top-2 size-2.5 rounded-full bg-rose-500" /> : null}</button>)}
-          {!list.length ? <p className="col-span-3 text-lg text-slate-500">No hay un ternero con ese número.</p> : null}
-        </div>}
+        <CalfGrid calves={calves} pendingTags={pendingTags} onPick={(c) => { setCalf(c); setStep(2); }} />
         <button onClick={() => { setCalf(null); setStep(2); }} className="h-16 w-full rounded-2xl border-2 border-dashed border-slate-300 bg-white text-lg font-bold text-slate-600">No sé / son varios terneros</button>
       </> : null}
 
@@ -278,14 +295,19 @@ const LOG_ICONS: [RegExp, React.ReactNode][] = [
   [/limpi|cama/i, <Brush key="b" />], [/calostr/i, <Baby key="c" />], [/observ/i, <Eye key="e" />],
 ];
 
-/** Anotar una tarea con un toque. El turno se completa solo según la hora. */
-function QuickLog({ farm, onClose }: { farm: Farm; onClose: () => void }) {
+/** Anotar una tarea: qué se hizo → para qué terneros (uno, varios o todos). El turno se completa solo. */
+function QuickLog({ farm, pendingTags, onClose }: { farm: Farm; pendingTags: Set<string>; onClose: () => void }) {
   const kinds = settingsOf(farm).logKinds;
+  const calves = useCalfOptions(farm.id);
   const [logs, setLogs] = useState<DailyLog[]>([]);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [writing, setWriting] = useState<string | null>(null);
+  const [kind, setKind] = useState<string | null>(null);
+  const [step, setStep] = useState<"tarea" | "terneros" | "detalle">("tarea");
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [allCalves, setAllCalves] = useState(false);
   const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
   const turno = turnoFor();
+  const needsText = (k: string) => /otro|observ/i.test(k);
 
   const load = useCallback(async () => {
     const { start, end } = dayBounds(new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }));
@@ -294,29 +316,69 @@ function QuickLog({ farm, onClose }: { farm: Farm; onClose: () => void }) {
   }, [farm.id]);
   useEffect(() => { void load(); }, [load]);
 
-  async function save(kind: string, detail = "") {
-    setSaving(kind);
-    const { error } = await supabase.from("simple_guachera_daily_logs").insert({ farm_id: farm.id, kind, notes: [`Turno ${turno}`, detail.trim()].filter(Boolean).join(". "), calf_id: null });
-    setSaving(null);
+  function chooseKind(k: string) { setKind(k); setPicked(new Set()); setAllCalves(false); setText(""); setStep("terneros"); }
+  function next(everyone: boolean) {
+    setAllCalves(everyone);
+    if (needsText(kind!)) setStep("detalle"); else void save(everyone, "");
+  }
+
+  async function save(everyone = allCalves, detail = text) {
+    if (!kind) return;
+    setSaving(true);
+    const notes = [`Turno ${turno}`, everyone ? "Todos los terneros" : "", detail.trim()].filter(Boolean).join(". ");
+    const rows: { farm_id: string; kind: string; notes: string; calf_id: string | null }[] = everyone || !picked.size ? [{ farm_id: farm.id, kind, notes, calf_id: null }] : [...picked].map((id) => ({ farm_id: farm.id, kind, notes, calf_id: id }));
+    const { error } = await supabase.from("simple_guachera_daily_logs").insert(rows);
+    setSaving(false);
     if (error) { toast.error(errorText(error, "No se pudo anotar")); return; }
-    toast.ok(`Anotado: ${kind}`);
-    setWriting(null); setText("");
+    toast.ok(`Anotado: ${kind}${everyone ? " · todos" : rows.length > 1 ? ` · ${rows.length} terneros` : calves?.find((c) => c.id === rows[0].calf_id) ? ` · ${calves.find((c) => c.id === rows[0].calf_id)!.tag}` : ""}`);
+    setKind(null); setStep("tarea");
     await load();
   }
 
-  const needsText = (k: string) => /otro|observ/i.test(k);
-  return <Modal title={`¿Qué hiciste? · turno ${turno}`} onClose={onClose}>
-    {writing ? <div className="space-y-3">
-      <p className="text-lg font-bold">{writing}</p>
-      <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Contá en pocas palabras" className="text-lg" autoFocus aria-label="Detalle" />
-      <div className="grid grid-cols-2 gap-2"><Button variant="ghost" onClick={() => setWriting(null)} className="!h-14">Volver</Button><Button onClick={() => void save(writing, text)} disabled={!text.trim()} loading={saving === writing} className="!h-14 !text-lg">Anotar</Button></div>
-    </div> : <div className="grid grid-cols-2 gap-3">{kinds.map((k) => {
-      const done = logs.filter((l) => l.kind === k && l.notes.startsWith(`Turno ${turno}`));
-      return <button key={k} onClick={() => (needsText(k) ? setWriting(k) : void save(k))} disabled={saving !== null}
-        className={`flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-2xl border-4 p-3 text-center text-lg font-black [&_svg]:size-8 ${done.length ? "border-emerald-500 bg-emerald-50 text-emerald-900" : "border-transparent bg-slate-100 text-slate-800"}`}>
-        {saving === k ? <RefreshCw className="animate-spin" /> : LOG_ICONS.find(([re]) => re.test(k))?.[1] ?? <ClipboardPen />}{k}
-        {done.length ? <span className="flex items-center gap-1 text-sm font-bold text-emerald-700"><Check className="!size-4" />{formatTime(done[0].done_at)}{done[0].author_name ? ` · ${done[0].author_name.split(" ")[0]}` : ""}</span> : null}
-      </button>;
-    })}</div>}
-  </Modal>;
+  const togglePick = (c: CalfOption) => setPicked((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; });
+  const tagOf = (id: string | null) => calves?.find((c) => c.id === id)?.tag;
+
+  return <div className="fixed inset-0 z-40 overflow-y-auto bg-canvas" role="dialog" aria-modal="true" aria-label="Anotar tarea">
+    <div className="mx-auto max-w-xl space-y-4 p-4 pb-36">
+      <div className="flex items-center gap-3">
+        {step !== "tarea" ? <button onClick={() => setStep(step === "detalle" ? "terneros" : "tarea")} className="grid size-12 place-items-center rounded-full bg-white" aria-label="Atrás"><ArrowLeft className="size-6" /></button> : null}
+        <p className="flex-1 text-lg font-bold text-slate-500">Turno {turno}</p>
+        <button onClick={onClose} className="grid size-12 place-items-center rounded-full bg-white" aria-label="Cerrar"><X className="size-6" /></button>
+      </div>
+
+      {step === "tarea" ? <>
+        <h2 className="text-3xl font-black">¿Qué hiciste?</h2>
+        <div className="grid grid-cols-2 gap-3">{kinds.map((k) => {
+          const done = logs.filter((l) => l.kind === k && l.notes.startsWith(`Turno ${turno}`));
+          const general = done.some((l) => !l.calf_id);
+          const tags = [...new Set(done.map((l) => tagOf(l.calf_id)).filter(Boolean))];
+          return <button key={k} onClick={() => chooseKind(k)}
+            className={`flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-2xl border-4 p-3 text-center text-lg font-black [&_svg]:size-8 ${done.length ? "border-emerald-500 bg-emerald-50 text-emerald-900" : "border-transparent bg-white text-slate-800"}`}>
+            {LOG_ICONS.find(([re]) => re.test(k))?.[1] ?? <ClipboardPen />}{k}
+            {done.length ? <span className="flex items-center gap-1 text-sm font-bold text-emerald-700"><Check className="!size-4" />{general ? "Todos" : tags.length > 2 ? `${tags.length} terneros` : tags.join(", ")} · {formatTime(done[0].done_at)}</span> : null}
+          </button>;
+        })}</div>
+      </> : null}
+
+      {step === "terneros" && kind ? <>
+        <h2 className="text-3xl font-black">¿Para qué ternero?</h2>
+        <p className="flex items-center gap-2 text-lg font-bold text-brand-dark [&_svg]:size-6">{LOG_ICONS.find(([re]) => re.test(kind))?.[1] ?? <ClipboardPen />}{kind}</p>
+        <button onClick={() => next(true)} disabled={saving} className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-brand-deep text-xl font-black text-white disabled:opacity-60">{saving && allCalves ? <RefreshCw className="size-6 animate-spin" /> : <CheckCircle2 className="size-6" />}Todos los terneros</button>
+        <p className="text-lg text-slate-600">O tocá uno o varios:</p>
+        <CalfGrid calves={calves} pendingTags={pendingTags} selected={picked} onPick={togglePick} />
+        <div className="fixed inset-x-0 bottom-0 border-t border-[#dce5e1] bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+          <div className="mx-auto max-w-xl"><button onClick={() => next(false)} disabled={!picked.size || saving} className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-brand text-xl font-black text-white disabled:opacity-40">
+            {saving ? <RefreshCw className="size-6 animate-spin" /> : <Check className="size-7" />}{picked.size ? `Anotar para ${picked.size === 1 ? `el ${tagOf([...picked][0])}` : `${picked.size} terneros`}` : "Elegí los terneros"}
+          </button></div>
+        </div>
+      </> : null}
+
+      {step === "detalle" && kind ? <>
+        <h2 className="text-3xl font-black">{kind}</h2>
+        <p className="text-lg text-slate-600">{allCalves ? "Todos los terneros" : [...picked].map(tagOf).join(", ")}</p>
+        <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="Contá en pocas palabras" className="text-lg" autoFocus aria-label="Detalle" />
+        <button onClick={() => void save()} disabled={!text.trim() || saving} className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-brand text-xl font-black text-white disabled:opacity-40">{saving ? <RefreshCw className="size-6 animate-spin" /> : <Check className="size-7" />}Anotar</button>
+      </> : null}
+    </div>
+  </div>;
 }
