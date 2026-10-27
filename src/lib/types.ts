@@ -104,3 +104,23 @@ export type Report = {
   author_name: string;
   created_at: string;
 };
+export type Birth = {
+  id: string;
+  farm_id: string;
+  tag: string;
+  sex: "Hembra" | "Macho" | null;
+  birth_date: string;
+  birth_weight: number | null;
+  mother_tag: string;
+  calving: "Normal" | "Con ayuda" | "Difícil";
+  alive: boolean;
+  colostrum_liters: number | null;
+  colostrum_hours: number | null;
+  notes: string;
+  status: "Pendiente" | "Cargado" | "Descartado";
+  calf_id: string | null;
+  reviewed_by_name: string;
+  created_by: string;
+  author_name: string;
+  created_at: string;
+};

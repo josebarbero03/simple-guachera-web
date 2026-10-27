@@ -8,6 +8,7 @@ import type { Calf, CalfInput, Farm } from "../lib/types";
 import { BulkCalvesModal } from "./BulkCalvesModal";
 import { CalfDetail, ColostrumFields, TPI_STYLE, colostrumValues } from "./CalfDetail";
 import { ChangeCategoryModal } from "./ChangeCategoryModal";
+import { PendingBirths } from "./PendingBirths";
 import { Button, Card, Empty, Field, Input, Modal, Select, Textarea, toast } from "./ui";
 
 type Filter = string;
@@ -62,6 +63,8 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
         <Button onClick={() => setCreating(true)}><Plus />Nuevo ternero</Button>
       </div>
     </div>
+
+    <PendingBirths farm={farm} onLoaded={load} />
 
     <div className={`grid grid-cols-2 gap-3 ${cats.length === 3 ? "sm:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5"}`}>
       <Stat label="Activos" value={active.length} highlight />

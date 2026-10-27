@@ -63,3 +63,6 @@ export function speak(text: string) {
   window.speechSynthesis.speak(u);
   return true;
 }
+
+/** La tarea "Nacimiento" (o "Registro de nacimiento", "Parto"...) abre el formulario de nacimiento. */
+export const isBirthKind = (kind: string) => /nacim|parto|pari[oó]/i.test(kind);

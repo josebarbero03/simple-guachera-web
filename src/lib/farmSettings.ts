@@ -5,7 +5,7 @@ export type FarmSettings = { categories: CategoryDef[]; logKinds: string[]; plan
 
 export const DEFAULT_SETTINGS: FarmSettings = {
   categories: CATEGORIES.map((c) => ({ ...c })),
-  logKinds: ["Alimentación", "Iniciador", "Agua", "Limpieza de cama", "Calostrado", "Observación", "Otro"],
+  logKinds: ["Nacimiento", "Alimentación", "Iniciador", "Agua", "Limpieza de cama", "Calostrado", "Observación", "Otro"],
   planLateDays: 14,
 };
 

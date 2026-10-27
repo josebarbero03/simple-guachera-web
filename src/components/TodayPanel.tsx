@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, BellRing, Check, CheckCircle2, ClipboardCheck, RefreshCw, ShieldPlus, Syringe, Undo2, X } from "lucide-react";
+import { AlertTriangle, Baby, BellRing, Check, CheckCircle2, ClipboardCheck, RefreshCw, ShieldPlus, Syringe, Undo2, X } from "lucide-react";
 import { ageDays, formatDate } from "../lib/calves";
 import { SEVERITY_STYLE } from "../lib/indicators";
 import { supabase } from "../lib/supabase";
@@ -8,8 +8,9 @@ import type { Farm } from "../lib/types";
 import { useDayTasks, type DoseRow, type PlanItem, type Skipping } from "../hooks/useDayTasks";
 import { Button, Empty, Field, Modal, Textarea, toast } from "./ui";
 
-export function TodayPanel({ farm, userId, manager, onGoReports }: { farm: Farm; userId: string; manager: boolean; onGoReports: () => void }) {
+export function TodayPanel({ farm, userId, manager, onGoReports, onGoCalves }: { farm: Farm; userId: string; manager: boolean; onGoReports: () => void; onGoCalves: () => void }) {
   const [reports, setReports] = useState<{ total: number; urgent: number }>({ total: 0, urgent: 0 });
+  const [births, setBirths] = useState(0);
   const [skipping, setSkipping] = useState<Skipping | null>(null);
   const { day, start, pending, done, plan, planDone, refreshing, busy, load, recordDose, recordPlan } = useDayTasks(farm);
   useEffect(() => {
@@ -18,6 +19,7 @@ export function TodayPanel({ farm, userId, manager, onGoReports }: { farm: Farm;
       const list = (data ?? []) as { urgent: boolean }[];
       setReports({ total: list.length, urgent: list.filter((r) => r.urgent).length });
     });
+    void supabase.from("simple_guachera_births").select("id").eq("farm_id", farm.id).eq("status", "Pendiente").then(({ data }) => setBirths(data?.length ?? 0));
   }, [manager, farm.id]);
 
 
@@ -35,6 +37,9 @@ export function TodayPanel({ farm, userId, manager, onGoReports }: { farm: Farm;
 
     {manager && reports.total ? <button onClick={onGoReports} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold ${reports.urgent ? "bg-rose-600 text-white" : "bg-amber-100 text-amber-900"}`}>
       <BellRing className="size-5 shrink-0" /><span className="flex-1">{reports.total === 1 ? "1 aviso del equipo para revisar" : `${reports.total} avisos del equipo para revisar`}{reports.urgent ? ` · ${reports.urgent} urgente${reports.urgent > 1 ? "s" : ""}` : ""}</span><span className="text-sm underline">Ver</span>
+    </button> : null}
+    {manager && births ? <button onClick={onGoCalves} className="flex w-full items-center gap-3 rounded-2xl bg-sky-100 px-4 py-3 text-left font-bold text-sky-900">
+      <Baby className="size-5 shrink-0" /><span className="flex-1">{births === 1 ? "1 nacimiento para cargar" : `${births} nacimientos para cargar`}</span><span className="text-sm underline">Ver</span>
     </button> : null}
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       <Counter label="Para hacer" value={todays.length + plan.length - planLate.length} tone="brand" />

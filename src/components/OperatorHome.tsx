@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft, Baby, Bandage, Brush, Camera, Check, CheckCircle2, ChevronDown, CircleDot, CircleHelp, ClipboardPen, Droplet, Droplets, Eye, Frown,
-  Megaphone, Mic, Milk, Pencil, RefreshCw, Search, ShieldPlus, Square, Trash2, TriangleAlert, Undo2, Volume2, Wheat, Wind, X,
+  GlassWater, Megaphone, Mic, Milk, Pencil, RefreshCw, Search, ShieldPlus, Square, Trash2, TriangleAlert, Undo2, Volume2, Wheat, Wind, X,
 } from "lucide-react";
 import { useDayTasks, type DoseRow, type PlanItem } from "../hooks/useDayTasks";
 import { formatDate } from "../lib/calves";
 import { settingsOf } from "../lib/farmSettings";
 import { SEVERITY_ORDER } from "../lib/indicators";
 import { MAX_PHOTOS, useObjectUrl, useRecorder } from "../lib/media";
-import { SYMPTOMS, greeting, isUrgent, plainInstruction, speak, symptomsText, turnoFor, type SymptomId } from "../lib/plain";
+import { SYMPTOMS, greeting, isBirthKind, isUrgent, plainInstruction, speak, symptomsText, turnoFor, type SymptomId } from "../lib/plain";
 import { sendReport } from "../lib/reports";
 import { errorText, supabase } from "../lib/supabase";
 import { dayBounds, describePlanDays, formatTime } from "../lib/treatments";
 import type { DailyLog, Farm, Report, Severity } from "../lib/types";
+import { BirthForm } from "./BirthForm";
 import { CameraModal } from "./CameraModal";
 import { Button, Modal, Textarea, toast } from "./ui";
 
@@ -292,7 +293,7 @@ function Thumb({ blob, onRemove }: { blob: Blob; onRemove: () => void }) {
 
 const LOG_ICONS: [RegExp, React.ReactNode][] = [
   [/aliment|leche/i, <Milk key="m" />], [/iniciador|balanceado|alimento seco/i, <Wheat key="w" />], [/agua/i, <Droplet key="d" />],
-  [/limpi|cama/i, <Brush key="b" />], [/calostr/i, <Baby key="c" />], [/observ/i, <Eye key="e" />],
+  [/limpi|cama/i, <Brush key="b" />], [/calostr/i, <GlassWater key="c" />], [/observ/i, <Eye key="e" />],
 ];
 
 /** Anotar una tarea: qué se hizo → para qué terneros (uno, varios o todos). El turno se completa solo. */
@@ -301,7 +302,8 @@ function QuickLog({ farm, pendingTags, onClose }: { farm: Farm; pendingTags: Set
   const calves = useCalfOptions(farm.id);
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [kind, setKind] = useState<string | null>(null);
-  const [step, setStep] = useState<"tarea" | "terneros" | "detalle">("tarea");
+  const [step, setStep] = useState<"tarea" | "terneros" | "detalle" | "nacimiento">("tarea");
+  const [birthsToday, setBirthsToday] = useState(0);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [allCalves, setAllCalves] = useState(false);
   const [text, setText] = useState("");
@@ -313,10 +315,13 @@ function QuickLog({ farm, pendingTags, onClose }: { farm: Farm; pendingTags: Set
     const { start, end } = dayBounds(new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }));
     const { data } = await supabase.from("simple_guachera_daily_logs").select("*").eq("farm_id", farm.id).gte("done_at", start).lte("done_at", end).order("done_at", { ascending: false });
     setLogs((data ?? []) as DailyLog[]);
+    const births = await supabase.from("simple_guachera_births").select("id").eq("farm_id", farm.id).gte("created_at", start);
+    setBirthsToday(births.data?.length ?? 0);
   }, [farm.id]);
   useEffect(() => { void load(); }, [load]);
 
-  function chooseKind(k: string) { setKind(k); setPicked(new Set()); setAllCalves(false); setText(""); setStep("terneros"); }
+  // Un nacimiento todavía no tiene ternero cargado: va a su propio formulario.
+  function chooseKind(k: string) { setKind(k); setPicked(new Set()); setAllCalves(false); setText(""); setStep(isBirthKind(k) ? "nacimiento" : "terneros"); }
   function next(everyone: boolean) {
     setAllCalves(everyone);
     if (needsText(kind!)) setStep("detalle"); else void save(everyone, "");
@@ -349,6 +354,9 @@ function QuickLog({ farm, pendingTags, onClose }: { farm: Farm; pendingTags: Set
       {step === "tarea" ? <>
         <h2 className="text-3xl font-black">¿Qué hiciste?</h2>
         <div className="grid grid-cols-2 gap-3">{kinds.map((k) => {
+          if (isBirthKind(k)) return <button key={k} onClick={() => chooseKind(k)} className={`flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-2xl border-4 p-3 text-center text-lg font-black [&_svg]:size-8 ${birthsToday ? "border-emerald-500 bg-emerald-50 text-emerald-900" : "border-transparent bg-white text-slate-800"}`}>
+            <Baby />{k}{birthsToday ? <span className="flex items-center gap-1 text-sm font-bold text-emerald-700"><Check className="!size-4" />{birthsToday} hoy</span> : null}
+          </button>;
           const done = logs.filter((l) => l.kind === k && l.notes.startsWith(`Turno ${turno}`));
           const general = done.some((l) => !l.calf_id);
           const tags = [...new Set(done.map((l) => tagOf(l.calf_id)).filter(Boolean))];
@@ -372,6 +380,8 @@ function QuickLog({ farm, pendingTags, onClose }: { farm: Farm; pendingTags: Set
           </button></div>
         </div>
       </> : null}
+
+      {step === "nacimiento" ? <BirthForm farm={farm} onSent={() => { setKind(null); setStep("tarea"); void load(); }} /> : null}
 
       {step === "detalle" && kind ? <>
         <h2 className="text-3xl font-black">{kind}</h2>

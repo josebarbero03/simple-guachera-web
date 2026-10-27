@@ -154,7 +154,7 @@ function Shell({ session }: { session: Session }) {
       {farm && !manager ? <OperatorHome key={farm.id} farm={farm} userId={userId} userName={firstName} />
         : active === "mas" ? <MoreMenu onPick={go} />
         : !farm || active === "establecimientos" ? <FarmsPanel farms={farms} roles={roles} userId={userId} email={session.user.email ?? ""} onChanged={loadFarms} onOpen={(id) => { setFarmId(id); go("hoy"); }} onCreated={(id) => { setFarmId(id); setSetupId(id); go("config"); }} />
-        : active === "hoy" ? <TodayPanel key={farm.id} farm={farm} userId={userId} manager={manager} onGoReports={() => go("avisos")} />
+        : active === "hoy" ? <TodayPanel key={farm.id} farm={farm} userId={userId} manager={manager} onGoReports={() => go("avisos")} onGoCalves={() => go("terneros")} />
         : active === "avisos" ? <ReportsInbox key={farm.id} farm={farm} onGoProtocols={() => go("protocolos")} />
         : active === "registro" ? <LogPanel key={farm.id} farm={farm} userId={userId} manager={manager} />
         : active === "terneros" ? <CalvesPanel key={farm.id} farm={farm} />

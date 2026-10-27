@@ -19,6 +19,9 @@ Los datos y el ingreso usan Supabase (mismo proyecto que SInPLe Stock, tablas co
 - **Pantalla del operario** (`OperatorHome`): pensada para gente con poca práctica con el celular. Tarjetas grandes por
   tarea con la caravana enorme, color por gravedad, instrucción en lenguaje simple ("Inyección en el músculo" en vez de "IM"),
   botón 🔊 que lee la tarea en voz alta, **HECHO** / **No pude** (motivos para tocar), avance del día y respuestas del veterinario.
+- **Nacimientos**: el operario los avisa desde "Anotar tarea → Nacimiento" (caravana o "todavía no tiene", sexo, día,
+  parto, vivo/muerto, calostro); productor / veterinario los revisan en Terneros y los cargan (los nacidos muertos quedan
+  como muerte al nacer).
 - **Avisar** (operario): fotos (comprimidas antes de subir), audio grabado en el celular, texto, ternero y marca de urgente.
   **Avisos** (productor / veterinario): bandeja para ver, escuchar, diagnosticar e indicar el tratamiento; el operario ve
   el diagnóstico. Archivos privados en Supabase Storage (bucket `simple-guachera-avisos`).
@@ -45,7 +48,7 @@ no solo en la pantalla.
 ## Puesta en marcha (una sola vez)
 
 1. **Base de datos**: en Supabase → SQL Editor, pegar y ejecutar en orden cada archivo de `supabase/migrations/`
-   (`0001_base.sql`, `0002_roles_tratamientos.sql`, `0003_pesadas_indicadores.sql`, `0004_categorias.sql`, `0005_avisos.sql`, …). Se pueden volver a ejecutar sin romper nada.
+   (`0001_base.sql`, `0002_roles_tratamientos.sql`, `0003_pesadas_indicadores.sql`, `0004_categorias.sql`, `0005_avisos.sql`, `0006_nacimientos.sql`, …). Se pueden volver a ejecutar sin romper nada.
 2. **URL de la app en Supabase**: Authentication → URL Configuration → agregar la dirección donde se publique
    la app (por ejemplo `https://josebarbero03.github.io/simple-guachera-web/`) en *Redirect URLs*,
    para que funcionen los enlaces de confirmación y de recuperación de contraseña.
