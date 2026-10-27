@@ -109,7 +109,7 @@ function Shell({ session }: { session: Session }) {
     <header className="sticky top-0 z-30 border-b border-[#dce5e1] bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
         <div className="hidden sm:block"><Brand /></div>
-        <img src="./logo.svg" alt="SInPLe Guachera" className="size-10 sm:hidden" />
+        <img src="./simple-logo.png" alt="SInPLe" className="size-10 rounded-lg object-contain sm:hidden" />
         <div className="min-w-0 flex-1 sm:ml-4">
           {farms.length ? <select aria-label="Establecimiento" value={farmId} onChange={(e) => setFarmId(e.target.value)} className="h-10 w-full max-w-xs truncate rounded-xl border border-[#cedad5] bg-white px-3 text-sm font-bold text-brand-dark">
             {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}

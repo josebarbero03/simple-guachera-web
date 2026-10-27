@@ -95,7 +95,7 @@ export function AuthScreen() {
 
 export function Brand({ light = false }: { light?: boolean }) {
   return <div className="flex items-center gap-3">
-    <img src="./logo.svg" alt="" width={48} height={48} className="size-12" />
+    <img src="./simple-logo.png" alt="SInPLe" width={48} height={48} className="size-12 rounded-xl bg-white object-contain" />
     <div><p className={`text-lg font-black ${light ? "" : "text-brand-dark"}`}>SInPLe Guachera</p><p className={`text-xs ${light ? "text-emerald-100/75" : "text-slate-500"}`}>Seguimiento Integral de la Producción Lechera</p></div>
   </div>;
 }
