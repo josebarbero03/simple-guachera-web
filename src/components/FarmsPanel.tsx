@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Building2, ChevronRight, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { errorText, supabase } from "../lib/supabase";
-import type { Farm } from "../lib/types";
+import { ROLE_LABEL } from "../lib/roles";
+import type { Farm, Role } from "../lib/types";
 import { Button, Card, Empty, Field, Input, Modal, toast } from "./ui";
 
 type Editing = { farm: Farm | null };
 
-export function FarmsPanel({ farms, userId, onChanged, onOpen }: { farms: Farm[]; userId: string; onChanged: () => Promise<void>; onOpen: (id: string) => void }) {
+export function FarmsPanel({ farms, roles, userId, email, onChanged, onOpen }: { farms: Farm[]; roles: Record<string, Role>; userId: string; email: string; onChanged: () => Promise<void>; onOpen: (id: string) => void }) {
   const [editing, setEditing] = useState<Editing | null>(null);
 
   return <div className="space-y-4">
@@ -15,14 +16,14 @@ export function FarmsPanel({ farms, userId, onChanged, onOpen }: { farms: Farm[]
       {farms.length ? <Button onClick={() => setEditing({ farm: null })}><Plus />Nuevo establecimiento</Button> : null}
     </div>
 
-    {!farms.length ? <Empty icon={<Building2 />} title="Todavía no hay establecimientos" text="Creá el primero para empezar a cargar terneros." action={<Button onClick={() => setEditing({ farm: null })}><Plus />Crear establecimiento</Button>} />
+    {!farms.length ? <Empty icon={<Building2 />} title="Todavía no hay establecimientos" text={`Creá el primero para empezar a cargar terneros. Si trabajás en un establecimiento de otra persona, pedile que te sume desde “Equipo” con tu email ${email}.`} action={<Button onClick={() => setEditing({ farm: null })}><Plus />Crear establecimiento</Button>} />
       : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {farms.map((farm) => {
           const owner = farm.owner_id === userId;
           return <Card key={farm.id} className="flex items-center gap-3">
             <button onClick={() => onOpen(farm.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
               <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand"><Building2 className="size-5" /></span>
-              <span className="min-w-0"><span className="block truncate font-black">{farm.name}</span><span className="flex items-center gap-1 truncate text-sm text-slate-500"><MapPin className="size-3.5 shrink-0" />{farm.location || "Sin ubicación"}</span></span>
+              <span className="min-w-0"><span className="block truncate font-black">{farm.name}</span><span className="flex items-center gap-1 truncate text-sm text-slate-500"><MapPin className="size-3.5 shrink-0" />{farm.location || "Sin ubicación"}</span>{roles[farm.id] ? <span className="text-xs font-bold text-brand">{ROLE_LABEL[roles[farm.id]]}</span> : null}</span>
             </button>
             {owner ? <button onClick={() => setEditing({ farm })} className="grid size-10 place-items-center rounded-xl text-slate-500 hover:bg-slate-100" aria-label={`Editar ${farm.name}`}><Pencil className="size-4" /></button> : null}
             <ChevronRight className="size-5 text-slate-300" />

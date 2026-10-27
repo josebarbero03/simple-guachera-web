@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Archive, ArchiveRestore, Milk, Pencil, Plus, RefreshCw, Search } from "lucide-react";
+import { Archive, ArchiveRestore, Milk, Pencil, Plus, RefreshCw, Search, Upload } from "lucide-react";
 import { CATEGORIES, ageDays, categoryFor, formatAge, formatDate, formatKg, today, validateCalf } from "../lib/calves";
 import { errorText, supabase } from "../lib/supabase";
 import type { Calf, CalfInput, Farm } from "../lib/types";
+import { BulkCalvesModal } from "./BulkCalvesModal";
 import { Button, Card, Empty, Field, Input, Modal, Select, Textarea, toast } from "./ui";
 
 type Filter = "todos" | (typeof CATEGORIES)[number]["name"] | "bajas";
@@ -13,6 +14,7 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
   const [filter, setFilter] = useState<Filter>("todos");
   const [editing, setEditing] = useState<{ calf: Calf | null } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [bulk, setBulk] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -48,6 +50,7 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
       <div><h1 className="text-2xl font-black">Terneros</h1><p className="text-sm text-slate-600">{farm.name}{farm.location ? ` · ${farm.location}` : ""}</p></div>
       <div className="flex gap-2">
         <Button variant="ghost" onClick={() => void load()} aria-label="Actualizar" title="Actualizar"><RefreshCw className={refreshing ? "animate-spin" : ""} /></Button>
+        <Button variant="secondary" onClick={() => setBulk(true)} aria-label="Carga masiva" title="Carga masiva"><Upload /><span className="hidden sm:inline">Carga masiva</span></Button>
         <Button onClick={() => setEditing({ calf: null })}><Plus />Nuevo ternero</Button>
       </div>
     </div>
@@ -65,7 +68,7 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
     </Card>
 
     {calves === null ? <p className="py-10 text-center text-slate-500">Cargando terneros…</p>
-      : !calves.length ? <Empty icon={<Milk />} title="Sin terneros cargados" text="Agregá el primer ternero de este establecimiento." action={<Button onClick={() => setEditing({ calf: null })}><Plus />Agregar ternero</Button>} />
+      : !calves.length ? <Empty icon={<Milk />} title="Sin terneros cargados" text="Agregá el primer ternero de este establecimiento." action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={() => setEditing({ calf: null })}><Plus />Agregar ternero</Button><Button variant="secondary" onClick={() => setBulk(true)}><Upload />Carga masiva</Button></div>} />
       : !visible.length ? <p className="py-10 text-center text-slate-500">No hay terneros que coincidan con el filtro.</p>
       : <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {visible.map((calf) => {
@@ -84,6 +87,7 @@ export function CalvesPanel({ farm }: { farm: Farm }) {
         })}
       </ul>}
 
+    {bulk ? <BulkCalvesModal farmId={farm.id} existingTags={active.map((c) => c.tag)} onClose={() => setBulk(false)} onSaved={async () => { setBulk(false); await load(); }} /> : null}
     {editing ? <CalfForm farmId={farm.id} calf={editing.calf} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await load(); }} /> : null}
   </div>;
 }

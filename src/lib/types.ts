@@ -13,3 +13,53 @@ export type Calf = {
   updated_at: string;
 };
 export type CalfInput = Pick<Calf, "tag" | "sex" | "birth_date" | "birth_weight" | "location" | "notes">;
+
+export type Role = "propietario" | "productor" | "veterinario" | "operario";
+export type Member = { farm_id: string; user_id: string; role: Role; email: string; display_name: string; created_at: string };
+export type Invitation = { farm_id: string; email: string; role: Exclude<Role, "propietario">; created_at: string };
+export type Protocol = {
+  id: string;
+  farm_id: string;
+  name: string;
+  product: string;
+  dose: string;
+  route: string;
+  interval_hours: number;
+  duration_days: number;
+  withdrawal_days: number;
+  notes: string;
+  active: boolean;
+};
+export type DoseStatus = "Pendiente" | "Aplicada" | "No aplicada" | "Cancelada";
+export type Dose = {
+  id: string;
+  farm_id: string;
+  treatment_id: string;
+  calf_id: string;
+  number: number;
+  total: number;
+  due_at: string;
+  status: DoseStatus;
+  done_at: string | null;
+  done_by: string | null;
+  done_by_name: string;
+  notes: string;
+};
+export type Treatment = {
+  id: string;
+  farm_id: string;
+  calf_id: string;
+  protocol_id: string | null;
+  protocol_name: string;
+  product: string;
+  dose: string;
+  route: string;
+  diagnosis: string;
+  start_at: string;
+  withdrawal_until: string | null;
+  status: "Activo" | "Finalizado";
+  outcome: "Recuperado" | "Sin respuesta" | "Muerte" | "Otro" | null;
+  notes: string;
+  closed_at: string | null;
+};
+export type DailyLog = { id: string; farm_id: string; calf_id: string | null; kind: string; notes: string; done_at: string; created_by: string; author_name: string };
