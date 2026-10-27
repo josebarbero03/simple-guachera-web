@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0f6b50"/><g transform="translate(15.360000000000014 15.360000000000014) scale(0.94)">
+  <!-- orejas -->
+  <g>
+    <path d="M178 214 C 140 190 92 186 62 204 C 84 236 132 252 176 244 Z" fill="#ffffff"/>
+    <path d="M168 220 C 138 204 104 202 84 210 C 104 230 136 238 166 234 Z" fill="#f0b9b0"/>
+    <path d="M334 214 C 372 190 420 186 450 204 C 428 236 380 252 336 244 Z" fill="#ffffff"/>
+    <path d="M344 220 C 374 204 408 202 428 210 C 408 230 376 238 346 234 Z" fill="#f0b9b0"/>
+  </g>
+  <!-- caravana -->
+  <path d="M398 222 l 0 22" stroke="#e0a800" stroke-width="6" stroke-linecap="round"/>
+  <rect x="378" y="238" width="42" height="50" rx="10" fill="#f6c431"/>
+  <circle cx="399" cy="250" r="5" fill="#0f6b50"/>
+  <rect x="388" y="262" width="22" height="5" rx="2.5" fill="#0f6b50" opacity=".55"/>
+  <rect x="388" y="272" width="16" height="5" rx="2.5" fill="#0f6b50" opacity=".55"/>
+  <!-- cabeza -->
+  <path d="M256 128 C 334 128 366 176 360 240 C 355 292 334 318 326 350 L 186 350 C 178 318 157 292 152 240 C 146 176 178 128 256 128 Z" fill="#ffffff"/>
+  <!-- mancha negra -->
+  <path d="M190 146 C 214 128 252 128 262 150 C 272 172 262 196 246 214 C 232 230 236 262 214 270 C 192 278 170 262 164 238 C 158 210 166 164 190 146 Z" fill="#10231d"/>
+  <path d="M318 150 C 334 160 346 180 346 198 C 330 194 312 180 306 164 C 304 156 310 148 318 150 Z" fill="#10231d"/>
+  <!-- ojos -->
+  <circle cx="212" cy="246" r="14" fill="#ffffff"/>
+  <circle cx="212" cy="246" r="11" fill="#10231d"/>
+  <circle cx="216" cy="242" r="3.5" fill="#ffffff"/>
+  <circle cx="300" cy="246" r="11" fill="#10231d"/>
+  <circle cx="304" cy="242" r="3.5" fill="#ffffff"/>
+  <!-- hocico -->
+  <ellipse cx="256" cy="352" rx="88" ry="60" fill="#f0b9b0"/>
+  <ellipse cx="224" cy="356" rx="13" ry="10" fill="#8a4f47"/>
+  <ellipse cx="288" cy="356" rx="13" ry="10" fill="#8a4f47"/>
+  <path d="M236 388 C 248 396 264 396 276 388" stroke="#8a4f47" stroke-width="5" fill="none" stroke-linecap="round"/>
+</g></svg>

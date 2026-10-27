@@ -1,8 +1,8 @@
 // Cachea la app para que abra sin señal. Las llamadas a Supabase nunca se cachean.
-const CACHE = "simple-guachera-web-v1";
+const CACHE = "simple-guachera-web-v2";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(["./", "./manifest.webmanifest", "./icon-192.png", "./simple-logo.png"])));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(["./", "./manifest.webmanifest", "./icon-192.png", "./logo.svg"])));
   self.skipWaiting();
 });
 
