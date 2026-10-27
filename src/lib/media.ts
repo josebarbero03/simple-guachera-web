@@ -88,3 +88,15 @@ export function useRecorder() {
 
   return { supported, recording, seconds, blob, error, start, stop, reset };
 }
+
+/** URL temporal para mostrar un archivo local (foto o audio) y liberarla al dejar de usarla. */
+export function useObjectUrl(blob: Blob | null) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!blob) { setUrl(null); return; }
+    const u = URL.createObjectURL(blob);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [blob]);
+  return url;
+}

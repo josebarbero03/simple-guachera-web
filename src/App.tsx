@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { BellRing, Camera, Building2, Settings2, CalendarCheck, ChartColumn, Upload, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
+import { BellRing, Building2, Settings2, CalendarCheck, ChartColumn, Upload, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
 import { AuthScreen, Brand } from "./components/AuthScreen";
 import { CalvesPanel } from "./components/CalvesPanel";
 import { BulkImport } from "./components/BulkImport";
@@ -8,8 +8,8 @@ import { FarmSettingsPanel } from "./components/FarmSettingsPanel";
 import { FarmsPanel } from "./components/FarmsPanel";
 import { IndicatorsPanel } from "./components/IndicatorsPanel";
 import { LogPanel } from "./components/LogPanel";
+import { OperatorHome } from "./components/OperatorHome";
 import { ProtocolsPanel } from "./components/ProtocolsPanel";
-import { ReportPanel } from "./components/ReportPanel";
 import { ReportsInbox } from "./components/ReportsInbox";
 import { TeamPanel } from "./components/TeamPanel";
 import { TodayPanel } from "./components/TodayPanel";
@@ -47,12 +47,11 @@ export function App() {
   </>;
 }
 
-type Tab = "hoy" | "avisar" | "avisos" | "registro" | "terneros" | "tratamientos" | "indicadores" | "carga" | "protocolos" | "equipo" | "config" | "establecimientos" | "mas";
+type Tab = "hoy" | "avisos" | "registro" | "terneros" | "tratamientos" | "indicadores" | "carga" | "protocolos" | "equipo" | "config" | "establecimientos" | "mas";
 type TabDef = { id: Tab; label: string; short?: string; icon: React.ReactNode };
 
 const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
   hoy: { id: "hoy", label: "Hoy", icon: <CalendarCheck /> },
-  avisar: { id: "avisar", label: "Avisar", icon: <Camera /> },
   avisos: { id: "avisos", label: "Avisos", icon: <BellRing /> },
   registro: { id: "registro", label: "Registro", icon: <ClipboardList /> },
   terneros: { id: "terneros", label: "Terneros", icon: <Milk /> },
@@ -65,8 +64,8 @@ const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
   establecimientos: { id: "establecimientos", label: "Establecimientos", icon: <Building2 /> },
 };
 const MANAGER_TABS: Tab[] = ["hoy", "avisos", "terneros", "tratamientos", "indicadores", "registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
-// El operario solo ve lo del día; cambia de establecimiento desde el selector de arriba.
-const OPERATOR_TABS: Tab[] = ["hoy", "avisar", "registro"];
+// El operario tiene una sola pantalla (OperatorHome); cambia de establecimiento desde el selector de arriba.
+const OPERATOR_TABS: Tab[] = ["hoy"];
 // En el celular la barra inferior muestra 4 accesos + "Más".
 const MANAGER_MOBILE: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "mas"];
 const MORE_TABS: Tab[] = ["avisos", "registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
@@ -122,7 +121,9 @@ function Shell({ session }: { session: Session }) {
   };
   const allowed = farm ? (manager ? MANAGER_TABS : OPERATOR_TABS) : ["establecimientos" as Tab];
   const active: Tab = tab === "mas" ? "mas" : allowed.includes(tab) ? tab : allowed[0];
-  const mobileTabs = farm ? (manager ? MANAGER_MOBILE : OPERATOR_TABS) : [];
+  // El operario no tiene barra de pestañas: su pantalla trae sus propios botones grandes.
+  const mobileTabs = farm && manager ? MANAGER_MOBILE : [];
+  const firstName = String(session.user.user_metadata?.full_name ?? "").trim().split(/\s+/)[0] ?? "";
   const go = (next: Tab) => { setTab(next); window.scrollTo({ top: 0 }); };
 
   return <div className="min-h-dvh pb-24 sm:pb-8">
@@ -138,7 +139,7 @@ function Shell({ session }: { session: Session }) {
         </div>
         <button onClick={() => void supabase.auth.signOut()} className="grid size-10 place-items-center rounded-xl text-slate-500 hover:bg-slate-100" title={`Salir (${session.user.email})`} aria-label="Cerrar sesión"><LogOut className="size-5" /></button>
       </div>
-      {farm ? <nav className="mx-auto hidden max-w-5xl gap-1 overflow-x-auto px-4 pb-2 sm:flex">
+      {farm && manager ? <nav className="mx-auto hidden max-w-5xl gap-1 overflow-x-auto px-4 pb-2 sm:flex">
         {allowed.map((id) => { const t = TABS[id as Exclude<Tab, "mas">]; return <TabButton key={id} active={active === id} onClick={() => go(id)} icon={t.icon} label={t.label} />; })}
       </nav> : null}
       {asOperator && role ? <div className="border-t border-amber-200 bg-amber-50">
@@ -150,10 +151,10 @@ function Shell({ session }: { session: Session }) {
     </header>
 
     <main className="mx-auto max-w-5xl px-4 py-5">
-      {active === "mas" ? <MoreMenu onPick={go} />
+      {farm && !manager ? <OperatorHome key={farm.id} farm={farm} userId={userId} userName={firstName} />
+        : active === "mas" ? <MoreMenu onPick={go} />
         : !farm || active === "establecimientos" ? <FarmsPanel farms={farms} roles={roles} userId={userId} email={session.user.email ?? ""} onChanged={loadFarms} onOpen={(id) => { setFarmId(id); go("hoy"); }} onCreated={(id) => { setFarmId(id); setSetupId(id); go("config"); }} />
         : active === "hoy" ? <TodayPanel key={farm.id} farm={farm} userId={userId} manager={manager} onGoReports={() => go("avisos")} />
-        : active === "avisar" ? <ReportPanel key={farm.id} farm={farm} userId={userId} />
         : active === "avisos" ? <ReportsInbox key={farm.id} farm={farm} onGoProtocols={() => go("protocolos")} />
         : active === "registro" ? <LogPanel key={farm.id} farm={farm} userId={userId} manager={manager} />
         : active === "terneros" ? <CalvesPanel key={farm.id} farm={farm} />

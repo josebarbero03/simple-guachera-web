@@ -12,10 +12,13 @@ Los datos y el ingreso usan Supabase (mismo proyecto que SInPLe Stock, tablas co
 | --- | --- |
 | Productor (dueño) | Todo, incluido eliminar el establecimiento. Es quien lo creó. |
 | Productor / Veterinario | Todo lo de gestión: terneros (alta y carga masiva), protocolos, tratamientos, equipo. |
-| Operario | **Hoy** (dosis del día: aplicada / no aplicada), **Avisar** (fotos y audio) y **Registro** (tareas diarias). |
+| Operario | Una sola pantalla simple: tareas de ahora con botón **HECHO**, **Avisar problema** (ternero → síntomas → foto/audio) y **Anotar tarea** con un toque. |
 
 - **Hoy**: dosis de tratamientos y aplicaciones del plan sanitario del día, con color según gravedad
   (rojo grave, naranja moderado, verde leve, celeste plan sanitario). Se marcan aplicadas o no aplicadas (con motivo).
+- **Pantalla del operario** (`OperatorHome`): pensada para gente con poca práctica con el celular. Tarjetas grandes por
+  tarea con la caravana enorme, color por gravedad, instrucción en lenguaje simple ("Inyección en el músculo" en vez de "IM"),
+  botón 🔊 que lee la tarea en voz alta, **HECHO** / **No pude** (motivos para tocar), avance del día y respuestas del veterinario.
 - **Avisar** (operario): fotos (comprimidas antes de subir), audio grabado en el celular, texto, ternero y marca de urgente.
   **Avisos** (productor / veterinario): bandeja para ver, escuchar, diagnosticar e indicar el tratamiento; el operario ve
   el diagnóstico. Archivos privados en Supabase Storage (bucket `simple-guachera-avisos`).
@@ -65,7 +68,9 @@ Otro proyecto de Supabase: copiar `.env.example` a `.env.local` y cambiar los va
 - `src/App.tsx`: sesión, encabezado, selector de establecimiento y pestañas.
 - `src/components/AuthScreen.tsx`: ingreso, alta de cuenta y recuperación.
 - `src/components/FarmsPanel.tsx`: establecimientos.
-- `src/components/TodayPanel.tsx`: dosis del día (operario y gestión).
+- `src/components/OperatorHome.tsx`: pantalla del operario. `src/hooks/useDayTasks.ts`: tareas del día (compartido).
+- `src/components/TodayPanel.tsx`: tareas del día para productor / veterinario.
+- `src/lib/plain.ts`: textos en lenguaje simple, turno, síntomas y lectura en voz alta.
 - `src/components/LogPanel.tsx`: registro de tareas diarias.
 - `src/components/CalvesPanel.tsx` y `BulkCalvesModal.tsx`: terneros y carga masiva.
 - `src/components/ProtocolsPanel.tsx`, `TreatmentsPanel.tsx`: protocolos y tratamientos.
