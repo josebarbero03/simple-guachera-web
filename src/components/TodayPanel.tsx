@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, Check, CheckCircle2, ClipboardCheck, RefreshCw, ShieldPlus, Syringe, Undo2, X } from "lucide-react";
+import { AlertTriangle, BellRing, Check, CheckCircle2, ClipboardCheck, RefreshCw, ShieldPlus, Syringe, Undo2, X } from "lucide-react";
 import { addDays, ageDays, formatDate, today } from "../lib/calves";
 import { settingsOf } from "../lib/farmSettings";
 import { SEVERITY_ORDER, SEVERITY_STYLE } from "../lib/indicators";
@@ -18,7 +18,8 @@ type Skipping = { kind: "dose"; dose: DoseRow } | { kind: "plan"; item: PlanItem
 
 const SELECT = "*, calf:simple_guachera_calves(tag,location), treatment:simple_guachera_treatments(protocol_name,product,dose,route,diagnosis,severity,notes)";
 
-export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: string; manager: boolean }) {
+export function TodayPanel({ farm, userId, manager, onGoReports }: { farm: Farm; userId: string; manager: boolean; onGoReports: () => void }) {
+  const [reports, setReports] = useState<{ total: number; urgent: number }>({ total: 0, urgent: 0 });
   const [pending, setPending] = useState<DoseRow[] | null>(null);
   const [done, setDone] = useState<DoseRow[]>([]);
   const [plan, setPlan] = useState<PlanItem[]>([]);
@@ -64,6 +65,13 @@ export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: stri
   }, [farm.id, start, end, day, PLAN_WINDOW]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!manager) return;
+    void supabase.from("simple_guachera_reports").select("urgent").eq("farm_id", farm.id).eq("status", "Pendiente").then(({ data }) => {
+      const list = (data ?? []) as { urgent: boolean }[];
+      setReports({ total: list.length, urgent: list.filter((r) => r.urgent).length });
+    });
+  }, [manager, farm.id]);
 
   async function recordDose(dose: DoseRow, status: "Aplicada" | "No aplicada" | "Pendiente", notes = "") {
     setBusy(dose.id);
@@ -96,6 +104,9 @@ export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: stri
       <Button variant="ghost" onClick={() => void load()} aria-label="Actualizar" title="Actualizar"><RefreshCw className={refreshing ? "animate-spin" : ""} /></Button>
     </div>
 
+    {manager && reports.total ? <button onClick={onGoReports} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold ${reports.urgent ? "bg-rose-600 text-white" : "bg-amber-100 text-amber-900"}`}>
+      <BellRing className="size-5 shrink-0" /><span className="flex-1">{reports.total === 1 ? "1 aviso del equipo para revisar" : `${reports.total} avisos del equipo para revisar`}{reports.urgent ? ` · ${reports.urgent} urgente${reports.urgent > 1 ? "s" : ""}` : ""}</span><span className="text-sm underline">Ver</span>
+    </button> : null}
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       <Counter label="Para hacer" value={todays.length + plan.length - planLate.length} tone="brand" />
       <Counter label="Atrasadas" value={overdue.length + planLate.length} tone={overdue.length + planLate.length ? "alert" : "plain"} />

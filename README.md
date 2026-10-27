@@ -12,10 +12,13 @@ Los datos y el ingreso usan Supabase (mismo proyecto que SInPLe Stock, tablas co
 | --- | --- |
 | Productor (dueño) | Todo, incluido eliminar el establecimiento. Es quien lo creó. |
 | Productor / Veterinario | Todo lo de gestión: terneros (alta y carga masiva), protocolos, tratamientos, equipo. |
-| Operario | **Hoy** (dosis del día: aplicada / no aplicada) y **Registro** (tareas diarias). Nada más. |
+| Operario | **Hoy** (dosis del día: aplicada / no aplicada), **Avisar** (fotos y audio) y **Registro** (tareas diarias). |
 
 - **Hoy**: dosis de tratamientos y aplicaciones del plan sanitario del día, con color según gravedad
   (rojo grave, naranja moderado, verde leve, celeste plan sanitario). Se marcan aplicadas o no aplicadas (con motivo).
+- **Avisar** (operario): fotos (comprimidas antes de subir), audio grabado en el celular, texto, ternero y marca de urgente.
+  **Avisos** (productor / veterinario): bandeja para ver, escuchar, diagnosticar e indicar el tratamiento; el operario ve
+  el diagnóstico. Archivos privados en Supabase Storage (bucket `simple-guachera-avisos`).
 - **Registro diario**: alimentación, iniciador, agua, limpieza de cama, calostrado, observaciones; por ternero o general.
 - **Protocolos**: de tratamiento (grupo de enfermedad, producto, dosis, vía, frecuencia, duración, retiro) y de
   **plan sanitario por edad** (se aplica una vez a cada ternero dentro de un rango de días de vida; aparece solo en Hoy).
@@ -39,7 +42,7 @@ no solo en la pantalla.
 ## Puesta en marcha (una sola vez)
 
 1. **Base de datos**: en Supabase → SQL Editor, pegar y ejecutar en orden cada archivo de `supabase/migrations/`
-   (`0001_base.sql`, `0002_roles_tratamientos.sql`, `0003_pesadas_indicadores.sql`, `0004_categorias.sql`, …). Se pueden volver a ejecutar sin romper nada.
+   (`0001_base.sql`, `0002_roles_tratamientos.sql`, `0003_pesadas_indicadores.sql`, `0004_categorias.sql`, `0005_avisos.sql`, …). Se pueden volver a ejecutar sin romper nada.
 2. **URL de la app en Supabase**: Authentication → URL Configuration → agregar la dirección donde se publique
    la app (por ejemplo `https://josebarbero03.github.io/simple-guachera-web/`) en *Redirect URLs*,
    para que funcionen los enlaces de confirmación y de recuperación de contraseña.

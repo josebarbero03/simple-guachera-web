@@ -69,15 +69,15 @@ export function TreatmentsPanel({ farm, onGoProtocols }: { farm: Farm; onGoProto
   </div>;
 }
 
-function NewTreatment({ farm, onClose, onSaved, onGoProtocols }: { farm: Farm; onClose: () => void; onSaved: () => Promise<void>; onGoProtocols: () => void }) {
+export function NewTreatment({ farm, onClose, onSaved, onGoProtocols, preselected = [], initialDiagnosis = "" }: { farm: Farm; onClose: () => void; onSaved: (diagnosis: string) => Promise<void>; onGoProtocols: () => void; preselected?: string[]; initialDiagnosis?: string }) {
   const { protocols } = useProtocols(farm.id);
   const active = useMemo(() => (protocols ?? []).filter((p) => p.active && p.kind === "Tratamiento"), [protocols]);
   const [calves, setCalves] = useState<Pick<Calf, "id" | "tag" | "location">[]>([]);
   const [protocolId, setProtocolId] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set(preselected));
   const [query, setQuery] = useState("");
   const [start, setStart] = useState(nowLocalInput());
-  const [diagnosis, setDiagnosis] = useState("");
+  const [diagnosis, setDiagnosis] = useState(initialDiagnosis);
   const [notes, setNotes] = useState("");
   const [severity, setSeverity] = useState<Severity>("Leve");
   const [saving, setSaving] = useState(false);
@@ -101,7 +101,7 @@ function NewTreatment({ farm, onClose, onSaved, onGoProtocols }: { farm: Farm; o
     setSaving(false);
     if (error) { toast.error(errorText(error, "No se pudo indicar el tratamiento")); return; }
     toast.ok(data === 1 ? "Tratamiento indicado" : `Tratamiento indicado a ${data} terneros`);
-    await onSaved();
+    await onSaved(diagnosis.trim() || protocol.name);
   }
 
   if (protocols && !active.length) return <Modal title="Nuevo tratamiento" onClose={onClose}>

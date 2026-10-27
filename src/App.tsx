@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Building2, Settings2, CalendarCheck, ChartColumn, Upload, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
+import { BellRing, Camera, Building2, Settings2, CalendarCheck, ChartColumn, Upload, ClipboardList, FileText, KeyRound, LoaderCircle, LogOut, Menu, Milk, Stethoscope, Users } from "lucide-react";
 import { AuthScreen, Brand } from "./components/AuthScreen";
 import { CalvesPanel } from "./components/CalvesPanel";
 import { BulkImport } from "./components/BulkImport";
@@ -9,6 +9,8 @@ import { FarmsPanel } from "./components/FarmsPanel";
 import { IndicatorsPanel } from "./components/IndicatorsPanel";
 import { LogPanel } from "./components/LogPanel";
 import { ProtocolsPanel } from "./components/ProtocolsPanel";
+import { ReportPanel } from "./components/ReportPanel";
+import { ReportsInbox } from "./components/ReportsInbox";
 import { TeamPanel } from "./components/TeamPanel";
 import { TodayPanel } from "./components/TodayPanel";
 import { TreatmentsPanel } from "./components/TreatmentsPanel";
@@ -45,11 +47,13 @@ export function App() {
   </>;
 }
 
-type Tab = "hoy" | "registro" | "terneros" | "tratamientos" | "indicadores" | "carga" | "protocolos" | "equipo" | "config" | "establecimientos" | "mas";
+type Tab = "hoy" | "avisar" | "avisos" | "registro" | "terneros" | "tratamientos" | "indicadores" | "carga" | "protocolos" | "equipo" | "config" | "establecimientos" | "mas";
 type TabDef = { id: Tab; label: string; short?: string; icon: React.ReactNode };
 
 const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
   hoy: { id: "hoy", label: "Hoy", icon: <CalendarCheck /> },
+  avisar: { id: "avisar", label: "Avisar", icon: <Camera /> },
+  avisos: { id: "avisos", label: "Avisos", icon: <BellRing /> },
   registro: { id: "registro", label: "Registro", icon: <ClipboardList /> },
   terneros: { id: "terneros", label: "Terneros", icon: <Milk /> },
   tratamientos: { id: "tratamientos", label: "Tratamientos", short: "Tratam.", icon: <Stethoscope /> },
@@ -60,12 +64,12 @@ const TABS: Record<Exclude<Tab, "mas">, TabDef> = {
   config: { id: "config", label: "Configuración", icon: <Settings2 /> },
   establecimientos: { id: "establecimientos", label: "Establecimientos", icon: <Building2 /> },
 };
-const MANAGER_TABS: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
+const MANAGER_TABS: Tab[] = ["hoy", "avisos", "terneros", "tratamientos", "indicadores", "registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
 // El operario solo ve lo del día; cambia de establecimiento desde el selector de arriba.
-const OPERATOR_TABS: Tab[] = ["hoy", "registro"];
+const OPERATOR_TABS: Tab[] = ["hoy", "avisar", "registro"];
 // En el celular la barra inferior muestra 4 accesos + "Más".
 const MANAGER_MOBILE: Tab[] = ["hoy", "terneros", "tratamientos", "indicadores", "mas"];
-const MORE_TABS: Tab[] = ["registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
+const MORE_TABS: Tab[] = ["avisos", "registro", "carga", "protocolos", "equipo", "config", "establecimientos"];
 
 function Shell({ session }: { session: Session }) {
   const userId = session.user.id;
@@ -148,7 +152,9 @@ function Shell({ session }: { session: Session }) {
     <main className="mx-auto max-w-5xl px-4 py-5">
       {active === "mas" ? <MoreMenu onPick={go} />
         : !farm || active === "establecimientos" ? <FarmsPanel farms={farms} roles={roles} userId={userId} email={session.user.email ?? ""} onChanged={loadFarms} onOpen={(id) => { setFarmId(id); go("hoy"); }} onCreated={(id) => { setFarmId(id); setSetupId(id); go("config"); }} />
-        : active === "hoy" ? <TodayPanel key={farm.id} farm={farm} userId={userId} manager={manager} />
+        : active === "hoy" ? <TodayPanel key={farm.id} farm={farm} userId={userId} manager={manager} onGoReports={() => go("avisos")} />
+        : active === "avisar" ? <ReportPanel key={farm.id} farm={farm} userId={userId} />
+        : active === "avisos" ? <ReportsInbox key={farm.id} farm={farm} onGoProtocols={() => go("protocolos")} />
         : active === "registro" ? <LogPanel key={farm.id} farm={farm} userId={userId} manager={manager} />
         : active === "terneros" ? <CalvesPanel key={farm.id} farm={farm} />
         : active === "tratamientos" ? <TreatmentsPanel key={farm.id} farm={farm} onGoProtocols={() => go("protocolos")} />
@@ -159,7 +165,7 @@ function Shell({ session }: { session: Session }) {
         : <TeamPanel key={farm.id} farm={farm} userId={userId} onUseAsOperator={() => setAsOperator(true)} />}
     </main>
 
-    {mobileTabs.length ? <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t border-[#dce5e1] bg-white pb-[env(safe-area-inset-bottom)] sm:hidden ${mobileTabs.length === 5 ? "grid-cols-5" : "grid-cols-2"}`}>
+    {mobileTabs.length ? <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t border-[#dce5e1] bg-white pb-[env(safe-area-inset-bottom)] sm:hidden ${mobileTabs.length === 5 ? "grid-cols-5" : mobileTabs.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
       {mobileTabs.map((id) => id === "mas"
         ? <TabButton key={id} mobile active={active === "mas" || MORE_TABS.includes(active)} onClick={() => go("mas")} icon={<Menu />} label="Más" />
         : <TabButton key={id} mobile active={active === id} onClick={() => go(id)} icon={TABS[id as Exclude<Tab, "mas">].icon} label={TABS[id as Exclude<Tab, "mas">].short ?? TABS[id as Exclude<Tab, "mas">].label} />)}
