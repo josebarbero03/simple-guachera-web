@@ -173,3 +173,19 @@ export function parseWeaning(text: string, calves: CalfRef[], on: string) {
     return { value: { id: calf.id, weaning_date: date, weaning_weight: weight }, summary: `${d}${weight !== null ? ` · ${fmtNum(weight, " kg")}` : ""}`, key: calf.id };
   });
 }
+
+export type CategoryRow = { calf_id: string; category: string; moved_on: string; notes: string };
+/** Caravana · Categoría (Guachera, Acostumbramiento, Recría o Automática) · Fecha (opcional, hoy) · Observaciones */
+export function parseCategories(text: string, calves: CalfRef[], names: string[], on: string) {
+  return rowsWith<CategoryRow>(text, calves, ([, c = "", d = "", notes = ""], calf) => {
+    if (!calf.active) return { error: "El ternero está dado de baja" };
+    const wanted = c.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const auto = wanted.startsWith("auto") || wanted === "por edad";
+    const category = auto ? "" : names.find((n) => n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") === wanted);
+    if (category === undefined) return { error: `Categoría "${c}" no válida (${names.join(", ")} o Automática)` };
+    const date = d.trim() ? parseDate(d) : on;
+    if (!date) return { error: `Fecha "${d}" no válida (dd/mm/aaaa)` };
+    if (date < calf.birth_date || date > on) return { error: "La fecha debe estar entre el nacimiento y hoy" };
+    return { value: { calf_id: calf.id, category, moved_on: date, notes: notes.trim() }, summary: `→ ${category || "Automática (por edad)"} · ${date.split("-").reverse().join("/")}`, key: calf.id };
+  });
+}

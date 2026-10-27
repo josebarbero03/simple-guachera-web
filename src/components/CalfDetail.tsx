@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ArchiveRestore, Plus, Trash2 } from "lucide-react";
-import { ageDays, categoryFor, daysBetween, formatAge, formatDate, formatKg, parseNum, today, validateCalf } from "../lib/calves";
+import { CATEGORY_NAMES, ageDays, daysBetween, effectiveCategory, formatAge, formatDate, formatKg, parseNum, today, validateCalf } from "../lib/calves";
 import { SEVERITY_STYLE, tpiCategory } from "../lib/indicators";
 import { errorText, supabase } from "../lib/supabase";
 import { formatDateTime } from "../lib/treatments";
-import type { Calf, CalfInput, ExitReason, PlanApplication, Treatment, Weight } from "../lib/types";
+import type { Calf, CalfInput, CategoryMove, ExitReason, PlanApplication, Treatment, Weight } from "../lib/types";
 import { Button, Field, Input, Modal, Select, Textarea, toast } from "./ui";
 
-type Tab = "datos" | "calostrado" | "pesadas" | "sanidad" | "salida";
+type Tab = "datos" | "categoria" | "calostrado" | "pesadas" | "sanidad" | "salida";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "datos", label: "Datos" }, { id: "calostrado", label: "Calostrado" }, { id: "pesadas", label: "Pesadas" },
+  { id: "datos", label: "Datos" }, { id: "categoria", label: "Categoría" }, { id: "calostrado", label: "Calostrado" }, { id: "pesadas", label: "Pesadas" },
   { id: "sanidad", label: "Sanidad" }, { id: "salida", label: "Destete / baja" },
 ];
 export const EXIT_REASONS: ExitReason[] = ["Muerte", "Venta", "Traslado", "Otro"];
@@ -19,11 +19,12 @@ export function CalfDetail({ calf, onClose, onChanged }: { calf: Calf; onClose: 
   const [tab, setTab] = useState<Tab>("datos");
   const days = ageDays(calf.birth_date);
   return <Modal title={`Ternero ${calf.tag}`} onClose={onClose}>
-    <p className="-mt-3 mb-3 text-sm text-slate-500">{calf.sex} · {formatAge(days)} · {calf.active ? categoryFor(days) : `Baja (${calf.exit_reason ?? "sin motivo"})`}</p>
+    <p className="-mt-3 mb-3 text-sm text-slate-500">{calf.sex} · {formatAge(days)} · {calf.active ? `${effectiveCategory(calf).name}${calf.category ? "" : " (por edad)"}` : `Baja (${calf.exit_reason ?? "sin motivo"})`}</p>
     <div className="-mx-1 mb-4 flex gap-1 overflow-x-auto px-1 pb-1">
       {TABS.map((t) => <button key={t.id} onClick={() => setTab(t.id)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${tab === t.id ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}>{t.label}</button>)}
     </div>
     {tab === "datos" ? <DataTab calf={calf} onSaved={onChanged} />
+      : tab === "categoria" ? <CategoryTab calf={calf} onSaved={onChanged} />
       : tab === "calostrado" ? <ColostrumTab calf={calf} onSaved={onChanged} />
       : tab === "pesadas" ? <WeightsTab calf={calf} />
       : tab === "sanidad" ? <HealthTab calf={calf} />
@@ -40,6 +41,55 @@ async function updateCalf(id: string, values: Partial<Calf>, ok: string) {
 
 function SaveRow({ saving }: { saving: boolean }) {
   return <div className="flex justify-end pt-1"><Button type="submit" loading={saving}>Guardar</Button></div>;
+}
+
+function CategoryTab({ calf, onSaved }: { calf: Calf; onSaved: () => Promise<void> }) {
+  const cat = effectiveCategory(calf);
+  const [moves, setMoves] = useState<CategoryMove[] | null>(null);
+  const [target, setTarget] = useState(calf.category ?? "");
+  const [date, setDate] = useState(today());
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("simple_guachera_category_moves").select("*").eq("calf_id", calf.id).order("moved_on", { ascending: false }).order("created_at", { ascending: false });
+    setMoves((data ?? []) as CategoryMove[]);
+  }, [calf.id]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if ((calf.category ?? "") === target) { toast.error("Ya está en esa categoría."); return; }
+    setSaving(true);
+    const { error } = await supabase.rpc("simple_guachera_change_category", { calf_ids: [calf.id], new_category: target, moved_on: date, move_notes: notes.trim() });
+    setSaving(false);
+    if (error) { toast.error(errorText(error, "No se pudo cambiar la categoría")); return; }
+    toast.ok("Categoría cambiada");
+    setNotes("");
+    await load();
+    await onSaved();
+  }
+
+  return <div className="space-y-4">
+    <div className="rounded-xl bg-brand-soft px-3 py-2 text-sm text-brand-dark">
+      <p>Categoría actual: <strong>{cat.name}</strong> {cat.manual ? "(asignada a mano)" : "(automática según la edad)"}</p>
+      {cat.manual && cat.byAge !== cat.name ? <p className={cat.overdue ? "font-bold text-amber-800" : ""}>Por edad le correspondería {cat.byAge}.</p> : null}
+    </div>
+    {calf.active ? <form onSubmit={submit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Pasar a"><Select value={target} onChange={(e) => setTarget(e.target.value)}>
+          {CATEGORY_NAMES.map((c) => <option key={c} value={c}>{c}</option>)}
+          <option value="">Automática (según la edad)</option>
+        </Select></Field>
+        <Field label="Fecha"><Input type="date" min={calf.birth_date} max={today()} value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
+      </div>
+      <Field label="Observaciones" hint="Opcional"><Input value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      <div className="flex justify-end"><Button type="submit" loading={saving}>Cambiar categoría</Button></div>
+    </form> : <p className="text-sm text-slate-500">El ternero está dado de baja.</p>}
+    <div><p className="mb-2 text-sm font-black text-slate-700">Historial</p>
+      {moves === null ? <p className="text-sm text-slate-500">Cargando…</p> : !moves.length ? <p className="text-sm text-slate-500">Sin cambios de categoría registrados.</p>
+        : <ul className="space-y-1.5">{moves.map((m) => <li key={m.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm"><strong>{formatDate(m.moved_on)}</strong> · {m.from_category} → <strong>{m.to_category}</strong>{m.moved_by_name ? <span className="text-slate-500"> · {m.moved_by_name}</span> : null}{m.notes ? <span className="block text-slate-600">{m.notes}</span> : null}</li>)}</ul>}
+    </div>
+  </div>;
 }
 
 function DataTab({ calf, onSaved }: { calf: Calf; onSaved: () => Promise<void> }) {

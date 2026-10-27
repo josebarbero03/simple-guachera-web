@@ -19,6 +19,7 @@ export type Calf = {
   exit_date: string | null;
   exit_reason: ExitReason | null;
   exit_cause: string;
+  category: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -80,6 +81,7 @@ export type Treatment = {
   disease_group: DiseaseGroup;
   severity: Severity;
 };
+export type CategoryMove = { id: string; calf_id: string; from_category: string; to_category: string; moved_on: string; notes: string; moved_by_name: string; created_at: string };
 export type Weight = { id: string; farm_id: string; calf_id: string; weighed_at: string; weight: number; notes: string };
 export type PlanApplication = { id: string; farm_id: string; calf_id: string; protocol_id: string; status: "Aplicada" | "No aplicada"; done_at: string; done_by: string | null; done_by_name: string; notes: string };
 export type DailyLog = { id: string; farm_id: string; calf_id: string | null; kind: string; notes: string; done_at: string; created_by: string; author_name: string };

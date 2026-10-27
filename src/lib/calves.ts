@@ -28,6 +28,18 @@ export function categoryFor(days: number) {
   return CATEGORIES.find((c) => days >= c.minAgeDays && days <= c.maxAgeDays)?.name ?? "Fuera de recría";
 }
 
+export const CATEGORY_NAMES: string[] = CATEGORIES.map((c) => c.name);
+
+/** Categoría vigente: la asignada a mano o, si no hay, la que corresponde por edad. */
+export function effectiveCategory(calf: { birth_date: string; category?: string | null }, on = today()) {
+  const byAge = categoryFor(ageDays(calf.birth_date, on));
+  const manual = calf.category ?? null;
+  const range = CATEGORIES.find((c) => c.name === manual);
+  // Aviso cuando el ternero ya superó la edad máxima de la categoría asignada.
+  const overdue = !!range && ageDays(calf.birth_date, on) > range.maxAgeDays;
+  return { name: manual ?? byAge, manual: manual !== null, byAge, overdue };
+}
+
 export function formatAge(days: number) {
   if (days < 0) return "Fecha futura";
   if (days < 14) return `${days} ${days === 1 ? "día" : "días"}`;

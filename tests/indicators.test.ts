@@ -5,7 +5,7 @@ import type { Calf } from "../src/lib/types";
 const calf = (id: string, birth: string, extra: Partial<Calf> = {}): Calf => ({
   id, farm_id: "f", tag: id, sex: "Hembra", birth_date: birth, birth_weight: 40, location: "", notes: "", active: true,
   colostrum_liters: null, colostrum_brix: null, colostrum_hours: null, serum_tp: null, serum_brix: null,
-  weaning_date: null, weaning_weight: null, exit_date: null, exit_reason: null, exit_cause: "", created_at: "", updated_at: "", ...extra,
+  weaning_date: null, weaning_weight: null, exit_date: null, exit_reason: null, exit_cause: "", category: null, created_at: "", updated_at: "", ...extra,
 });
 
 describe("inmunidad pasiva (Lombard 2020)", () => {

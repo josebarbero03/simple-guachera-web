@@ -108,3 +108,19 @@ describe("carga masiva de registros", () => {
     expect(w.map((x) => x.value?.weaning_weight)).toEqual([80, null]);
   });
 });
+
+import { parseCategories } from "../src/lib/bulk";
+
+describe("carga masiva de categorías", () => {
+  const calves = [{ id: "c1", tag: "2418", birth_date: "2026-08-01", active: true }, { id: "x", tag: "9", birth_date: "2026-08-01", active: false }];
+  const names = ["Guachera", "Acostumbramiento", "Recría"];
+  it("acepta nombres sin tildes, fecha opcional y automática", () => {
+    const r = parseCategories("Caravana;Categoria;Fecha\n2418;recria;20/10/2026;Lote 3", calves, names, "2026-10-27");
+    expect(r[0].value).toEqual({ calf_id: "c1", category: "Recría", moved_on: "2026-10-20", notes: "Lote 3" });
+    expect(parseCategories("2418;Automática", calves, names, "2026-10-27")[0].value).toMatchObject({ category: "", moved_on: "2026-10-27" });
+  });
+  it("rechaza categorías desconocidas y terneros dados de baja", () => {
+    expect(parseCategories("2418;Vaquillona", calves, names, "2026-10-27")[0].error).toMatch(/no válida/);
+    expect(parseCategories("9;Recría", calves, names, "2026-10-27")[0].error).toMatch(/baja/);
+  });
+});

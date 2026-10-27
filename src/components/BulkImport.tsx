@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { AlertCircle, CheckCircle2, Download, FileUp, Upload } from "lucide-react";
-import { parseBulkCalves, parseColostrum, parseExits, parseTreatments, parseWeaning, parseWeights, type CalfRef, type ProtocolRef, type TreatmentRow } from "../lib/bulk";
-import { formatDate, formatKg, today } from "../lib/calves";
+import { parseBulkCalves, parseCategories, parseColostrum, parseExits, parseTreatments, parseWeaning, parseWeights, type CalfRef, type CategoryRow, type ProtocolRef, type TreatmentRow } from "../lib/bulk";
+import { CATEGORY_NAMES, formatDate, formatKg, today } from "../lib/calves";
 import { errorText, supabase } from "../lib/supabase";
 import type { Farm } from "../lib/types";
 import { Button, Card, Textarea, toast } from "./ui";
 
-export type BulkKind = "terneros" | "pesadas" | "tratamientos" | "calostrado" | "destete" | "bajas";
+export type BulkKind = "terneros" | "pesadas" | "tratamientos" | "categorias" | "calostrado" | "destete" | "bajas";
 
 const KINDS: { id: BulkKind; label: string; columns: string[]; example: string[]; help: string }[] = [
   { id: "terneros", label: "Terneros", columns: ["Caravana", "Fecha de nacimiento", "Sexo (H/M)", "Peso al nacer", "Ubicación"], example: ["2418;15/10/2026;H;38;Estaca A-06", "2419;16/10/2026;M;41;Estaca A-07"], help: "Solo caravana y fecha son obligatorias." },
   { id: "pesadas", label: "Pesadas", columns: ["Caravana", "Fecha", "Peso (kg)"], example: ["2418;27/10/2026;52,5", "2419;27/10/2026;49"], help: "Si ya hay una pesada ese día para el ternero, se reemplaza." },
   { id: "tratamientos", label: "Tratamientos", columns: ["Caravana", "Protocolo", "Fecha de inicio", "Hora (opcional)", "Gravedad (opcional)", "Diagnóstico (opcional)"], example: ["2418;Diarrea;27/10/2026;08:00;Moderado;Diarrea amarilla", "2419;Neumonía;27/10/2026;;Grave;"], help: "El protocolo se busca por nombre exacto. Hora por defecto 08:00, gravedad Leve. Se generan todas las dosis." },
+  { id: "categorias", label: "Cambio de categoría", columns: ["Caravana", "Categoría (Guachera, Acostumbramiento, Recría o Automática)", "Fecha (opcional)", "Observaciones (opcional)"], example: ["2418;Acostumbramiento;27/10/2026;Destete lote 3", "2419;Recría;;"], help: "Sin fecha se toma la de hoy. “Automática” vuelve a la categoría según la edad." },
   { id: "calostrado", label: "Calostrado / sangre", columns: ["Caravana", "Litros de calostro", "Brix calostro %", "Horas de vida", "Proteína total g/dL", "Brix suero %"], example: ["2418;4;24;1;6,3;", "2419;3;;2;;8,7"], help: "Las columnas vacías no se modifican." },
   { id: "destete", label: "Destete", columns: ["Caravana", "Fecha de destete", "Peso (opcional)"], example: ["2418;27/10/2026;82", "2419;27/10/2026;"], help: "" },
   { id: "bajas", label: "Bajas / mortandad", columns: ["Caravana", "Fecha", "Motivo (Muerte, Venta, Traslado, Otro)", "Causa"], example: ["2418;26/10/2026;Muerte;Neumonía", "2419;26/10/2026;Venta;"], help: "Para muertes, la causa alimenta los indicadores." },
@@ -44,6 +45,7 @@ export function BulkImport({ farm, fixed, onDone }: { farm: Farm; fixed?: BulkKi
       case "terneros": return parseBulkCalves(text, calves.filter((c) => c.active).map((c) => c.tag), on).map((r) => ({ ...r, summary: r.value ? `${r.value.tag} · ${formatDate(r.value.birth_date)} · ${r.value.sex}${r.value.birth_weight ? ` · ${formatKg(r.value.birth_weight)}` : ""}${r.value.location ? ` · ${r.value.location}` : ""}` : "" }));
       case "pesadas": return parseWeights(text, calves, on);
       case "tratamientos": return parseTreatments(text, calves, protocols, on);
+      case "categorias": return parseCategories(text, calves, CATEGORY_NAMES, on);
       case "calostrado": return parseColostrum(text, calves);
       case "destete": return parseWeaning(text, calves, on);
       case "bajas": return parseExits(text, calves, on);
@@ -90,6 +92,16 @@ export function BulkImport({ farm, fixed, onDone }: { farm: Farm; fixed?: BulkKi
       }
       for (const { row, calves: ids } of groups.values()) {
         await run(protocols.find((p) => p.id === row.protocol_id)?.name ?? "Tratamiento", supabase.rpc("simple_guachera_start_treatment", { target_farm: farm.id, calf_ids: ids, protocol: row.protocol_id, start_at: row.start_at, diagnosis: row.diagnosis, treatment_notes: "", severity: row.severity }), ids.length);
+      }
+    } else if (kind === "categorias") {
+      // Un llamado por grupo con la misma categoría, fecha y observación.
+      const groups = new Map<string, { row: CategoryRow; calves: string[] }>();
+      for (const v of values as CategoryRow[]) {
+        const key = `${v.category}|${v.moved_on}|${v.notes}`;
+        groups.set(key, { row: v, calves: [...(groups.get(key)?.calves ?? []), v.calf_id] });
+      }
+      for (const { row, calves: ids } of groups.values()) {
+        await run(row.category || "Automática", supabase.rpc("simple_guachera_change_category", { calf_ids: ids, new_category: row.category, moved_on: row.moved_on, move_notes: row.notes }), ids.length);
       }
     } else {
       for (const r of valid) {

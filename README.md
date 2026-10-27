@@ -20,13 +20,15 @@ Los datos y el ingreso usan Supabase (mismo proyecto que SInPLe Stock, tablas co
 - **Protocolos**: de tratamiento (grupo de enfermedad, producto, dosis, vía, frecuencia, duración, retiro) y de
   **plan sanitario por edad** (se aplica una vez a cada ternero al cumplir el día de vida indicado; aparece solo en Hoy).
 - **Tratamientos**: protocolo + gravedad a uno o varios terneros; se generan las dosis. Se cierran con resultado.
+- **Categorías**: automática según la edad o asignada a mano (uno o varios terneros a la vez, con fecha e historial).
+  Avisa cuando un ternero superó la edad de la categoría asignada.
 - **Terneros**: ficha con datos, calostrado e inmunidad pasiva, pesadas con ganancia diaria, historial sanitario,
   destete y baja (motivo y causa).
 - **Indicadores**: mortalidad 1–60 días, morbilidad por diarrea y respiratoria, retratamientos, recuperados, dosis aplicadas,
   inmunidad pasiva, calostrado, ganancia diaria y destete, con semáforo según metas de referencia
   (DCHA Gold Standards, Lombard et al. 2020, INIA). Período elegible.
 - **Carga masiva** (pegar desde Excel o subir CSV, con plantilla y vista previa de errores): terneros, pesadas,
-  tratamientos, calostrado/sangre, destete y bajas.
+  tratamientos, cambios de categoría, calostrado/sangre, destete y bajas.
 - **Equipo**: sumar personas por email con su rol. Si todavía no tienen cuenta, quedan invitadas y entran solas al registrarse.
 
 Lo que puede ver y hacer cada rol se controla en la base de datos (RLS y funciones en `supabase/migrations/`),
@@ -35,7 +37,7 @@ no solo en la pantalla.
 ## Puesta en marcha (una sola vez)
 
 1. **Base de datos**: en Supabase → SQL Editor, pegar y ejecutar en orden cada archivo de `supabase/migrations/`
-   (`0001_base.sql`, `0002_roles_tratamientos.sql`, `0003_pesadas_indicadores.sql`, …). Se pueden volver a ejecutar sin romper nada.
+   (`0001_base.sql`, `0002_roles_tratamientos.sql`, `0003_pesadas_indicadores.sql`, `0004_categorias.sql`, …). Se pueden volver a ejecutar sin romper nada.
 2. **URL de la app en Supabase**: Authentication → URL Configuration → agregar la dirección donde se publique
    la app (por ejemplo `https://josebarbero03.github.io/simple-guachera-web/`) en *Redirect URLs*,
    para que funcionen los enlaces de confirmación y de recuperación de contraseña.
