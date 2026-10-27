@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #0f6b50;
+  --color-brand-dark: #0f4c3a;
+  --color-brand-deep: #103c32;
+  --color-brand-soft: #e8f2ed;
+  --color-brand-accent: #79d7a6;
+  --color-canvas: #f4f7f6;
+  --color-ink: #10231d;
+}
+
+html, body { background: var(--color-canvas); color: var(--color-ink); }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+input, select, textarea, button { font: inherit; }
