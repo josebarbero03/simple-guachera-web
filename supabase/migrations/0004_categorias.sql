@@ -1,4 +1,4 @@
--- SInPLe Guachera · cambio manual de categoría con historial.
+-- SInPLe Guachera · cambio manual de categoría con historial y rango de días en el plan sanitario.
 -- Ejecutar una sola vez en Supabase → SQL Editor, después de 0003. Se puede volver a ejecutar.
 
 -- Categoría asignada a mano. Vacía (null) = automática según la edad.
@@ -60,3 +60,10 @@ end;
 $$;
 
 grant execute on function public.simple_guachera_change_category(uuid[], text, date, text) to authenticated;
+
+-- ───────────── Plan sanitario: rango de días de vida ─────────────
+-- age_day = desde qué día de vida se puede aplicar; age_day_to = hasta qué día (vacío = solo ese día).
+alter table public.simple_guachera_protocols add column if not exists age_day_to integer;
+alter table public.simple_guachera_protocols drop constraint if exists simple_guachera_protocols_age_range;
+alter table public.simple_guachera_protocols add constraint simple_guachera_protocols_age_range
+  check (age_day_to is null or (age_day is not null and age_day_to between age_day and 365));

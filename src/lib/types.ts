@@ -44,6 +44,7 @@ export type Protocol = {
   kind: "Tratamiento" | "Plan sanitario";
   disease_group: DiseaseGroup;
   age_day: number | null;
+  age_day_to: number | null;
 };
 export type DiseaseGroup = "Diarrea" | "Respiratoria" | "Ombligo" | "Otra" | "Preventivo";
 export type Severity = "Leve" | "Moderado" | "Grave";

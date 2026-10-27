@@ -37,6 +37,12 @@ export function formatDateTime(iso: string) {
   return new Intl.DateTimeFormat("es-AR", { timeZone: TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
 }
 
+/** "día 15 de vida" o "días 10 a 20 de vida". */
+export function describePlanDays(from: number | null, to: number | null) {
+  if (from === null) return "";
+  return to !== null && to > from ? `días ${from} a ${to} de vida` : `día ${from} de vida`;
+}
+
 export function progress(doses: Pick<Dose, "status" | "due_at">[]) {
   const done = doses.filter((d) => d.status === "Aplicada").length;
   const missed = doses.filter((d) => d.status === "No aplicada").length;

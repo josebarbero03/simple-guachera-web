@@ -3,7 +3,7 @@ import { AlertTriangle, Check, CheckCircle2, ClipboardCheck, RefreshCw, ShieldPl
 import { addDays, ageDays, formatDate, today } from "../lib/calves";
 import { SEVERITY_ORDER, SEVERITY_STYLE } from "../lib/indicators";
 import { errorText, supabase } from "../lib/supabase";
-import { dayBounds, formatTime } from "../lib/treatments";
+import { dayBounds, describePlanDays, formatTime } from "../lib/treatments";
 import type { Calf, Dose, Farm, PlanApplication, Protocol, Treatment } from "../lib/types";
 import { Button, Empty, Field, Modal, Textarea, toast } from "./ui";
 
@@ -11,12 +11,12 @@ type DoseRow = Dose & {
   calf: { tag: string; location: string } | null;
   treatment: Pick<Treatment, "protocol_name" | "product" | "dose" | "route" | "diagnosis" | "severity" | "notes"> | null;
 };
-type PlanItem = { calf: Pick<Calf, "id" | "tag" | "location" | "birth_date">; protocol: Protocol; due: string };
+type PlanItem = { calf: Pick<Calf, "id" | "tag" | "location" | "birth_date">; protocol: Protocol; due: string; until: string };
 type PlanDone = PlanApplication & { calf: { tag: string } | null; protocol: { name: string; product: string } | null };
 type Skipping = { kind: "dose"; dose: DoseRow } | { kind: "plan"; item: PlanItem };
 
 const SELECT = "*, calf:simple_guachera_calves(tag,location), treatment:simple_guachera_treatments(protocol_name,product,dose,route,diagnosis,severity,notes)";
-const PLAN_WINDOW = 14; // días que una aplicación del plan sigue apareciendo como atrasada
+const PLAN_WINDOW = 14; // días que una aplicación del plan sigue apareciendo como atrasada después del último día del rango
 
 export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: string; manager: boolean }) {
   const [pending, setPending] = useState<DoseRow[] | null>(null);
@@ -44,13 +44,13 @@ export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: stri
     const plans = (protocols.data as Protocol[]).filter((x) => x.age_day != null);
     let items: PlanItem[] = [];
     if (plans.length) {
-      const oldest = addDays(day, -(Math.max(...plans.map((x) => x.age_day!)) + PLAN_WINDOW));
+      const oldest = addDays(day, -(Math.max(...plans.map((x) => x.age_day_to ?? x.age_day!)) + PLAN_WINDOW));
       const calves = await supabase.from("simple_guachera_calves").select("id,tag,location,birth_date").eq("farm_id", farm.id).eq("active", true).gte("birth_date", oldest);
       const ids = (calves.data ?? []).map((c) => c.id);
       const apps = ids.length ? await supabase.from("simple_guachera_plan_applications").select("calf_id,protocol_id").in("calf_id", ids) : { data: [] };
       const doneKeys = new Set((apps.data ?? []).map((a) => `${a.calf_id}|${a.protocol_id}`));
-      items = (calves.data ?? []).flatMap((c) => plans.map((pr) => ({ calf: c, protocol: pr, due: addDays(c.birth_date, pr.age_day!) })))
-        .filter((i) => i.due <= day && i.due >= addDays(day, -PLAN_WINDOW) && !doneKeys.has(`${i.calf.id}|${i.protocol.id}`))
+      items = (calves.data ?? []).flatMap((c) => plans.map((pr) => ({ calf: c, protocol: pr, due: addDays(c.birth_date, pr.age_day!), until: addDays(c.birth_date, pr.age_day_to ?? pr.age_day!) })))
+        .filter((i) => i.due <= day && i.until >= addDays(day, -PLAN_WINDOW) && !doneKeys.has(`${i.calf.id}|${i.protocol.id}`))
         .sort((a, b) => a.due.localeCompare(b.due) || a.calf.tag.localeCompare(b.calf.tag));
     }
     setRefreshing(false);
@@ -84,7 +84,7 @@ export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: stri
 
   const overdue = useMemo(() => (pending ?? []).filter((d) => d.due_at < start), [pending, start]);
   const todays = useMemo(() => (pending ?? []).filter((d) => d.due_at >= start), [pending, start]);
-  const planLate = plan.filter((i) => i.due < day);
+  const planLate = plan.filter((i) => i.until < day);
   const graves = (pending ?? []).filter((d) => d.treatment?.severity === "Grave").length;
   const nothing = pending !== null && !pending.length && !done.length && !plan.length && !planDone.length;
 
@@ -112,7 +112,7 @@ export function TodayPanel({ farm, userId, manager }: { farm: Farm; userId: stri
           {todays.map((d) => <DoseCard key={d.id} dose={d} busy={busy === d.id} onApply={() => void recordDose(d, "Aplicada")} onSkip={() => setSkipping({ kind: "dose", dose: d })} />)}
         </Section> : null}
         {plan.length ? <Section title="Plan sanitario" icon={<ShieldPlus className="text-sky-600" />}>
-          {plan.map((i) => { const key = `${i.calf.id}|${i.protocol.id}`; return <PlanCard key={key} item={i} late={i.due < day} busy={busy === key} onApply={() => void recordPlan(i.calf.id, i.protocol.id, i.calf.tag, "Aplicada")} onSkip={() => setSkipping({ kind: "plan", item: i })} />; })}
+          {plan.map((i) => { const key = `${i.calf.id}|${i.protocol.id}`; return <PlanCard key={key} item={i} late={i.until < day} busy={busy === key} onApply={() => void recordPlan(i.calf.id, i.protocol.id, i.calf.tag, "Aplicada")} onSkip={() => setSkipping({ kind: "plan", item: i })} />; })}
         </Section> : null}
         {!overdue.length && !todays.length && !plan.length ? <p className="rounded-2xl bg-brand-soft px-4 py-3 text-sm font-semibold text-brand-dark">Todas las tareas de hoy están registradas.</p> : null}
         {done.length || planDone.length ? <Section title="Registradas hoy" icon={<CheckCircle2 className="text-brand" />}>
@@ -174,11 +174,11 @@ function PlanCard({ item, late, busy, onApply, onSkip }: { item: PlanItem; late:
   const p = item.protocol;
   return <li className="min-w-0 rounded-2xl border border-sky-200 border-l-[6px] border-l-sky-500 bg-white p-3 shadow-[0_4px_16px_rgba(15,76,58,.05)]">
     <div className="flex gap-3">
-      <div className={`grid h-12 w-14 shrink-0 place-items-center rounded-xl text-center text-xs font-black leading-tight ${late ? "bg-amber-100 text-amber-800" : "bg-sky-50 text-sky-800"}`}>día<br />{p.age_day}</div>
+      <div className={`grid h-12 min-w-14 shrink-0 place-items-center rounded-xl px-1 text-center text-xs font-black leading-tight ${late ? "bg-amber-100 text-amber-800" : "bg-sky-50 text-sky-800"}`}>{p.age_day_to != null && p.age_day_to > p.age_day! ? <>días<br />{p.age_day}–{p.age_day_to}</> : <>día<br />{p.age_day}</>}</div>
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-x-2"><span className="text-xl font-black">{item.calf.tag}</span><span className="text-sm text-slate-500">{item.calf.location}</span></p>
         <p className="font-bold text-sky-900">{p.product}{p.dose ? ` · ${p.dose}` : ""}{p.route ? ` · ${p.route}` : ""}</p>
-        <p className="text-sm text-slate-500">{p.name} · {ageDays(item.calf.birth_date)} días de vida{late ? ` · tocaba el ${formatDate(item.due)}` : ""}</p>
+        <p className="text-sm text-slate-500">{p.name} · {ageDays(item.calf.birth_date)} días de vida · {late ? `vencía el ${formatDate(item.until)}` : item.until > item.due ? `aplicar hasta el ${formatDate(item.until)}` : describePlanDays(p.age_day, p.age_day_to)}</p>
         {p.notes ? <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-sm text-slate-700">{p.notes}</p> : null}
       </div>
     </div>

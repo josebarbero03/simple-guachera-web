@@ -124,3 +124,12 @@ describe("carga masiva de categorías", () => {
     expect(parseCategories("9;Recría", calves, names, "2026-10-27")[0].error).toMatch(/baja/);
   });
 });
+
+import { describePlanDays } from "../src/lib/treatments";
+describe("plan sanitario por rango", () => {
+  it("describe uno o varios días", () => {
+    expect(describePlanDays(15, null)).toBe("día 15 de vida");
+    expect(describePlanDays(10, 20)).toBe("días 10 a 20 de vida");
+    expect(describePlanDays(10, 10)).toBe("día 10 de vida");
+  });
+});
