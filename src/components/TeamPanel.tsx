@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Mail, Trash2, UserPlus, Users } from "lucide-react";
+import { HardHat, Mail, Trash2, UserPlus, Users } from "lucide-react";
 import { INVITABLE_ROLES, ROLE_LABEL } from "../lib/roles";
 import { errorText, supabase } from "../lib/supabase";
 import type { Farm, Invitation, Member, Role } from "../lib/types";
@@ -11,7 +11,7 @@ const ROLE_HELP: Record<(typeof INVITABLE_ROLES)[number], string> = {
   productor: "Todas las funciones: protocolos, tratamientos, terneros y equipo.",
 };
 
-export function TeamPanel({ farm, userId }: { farm: Farm; userId: string }) {
+export function TeamPanel({ farm, userId, onUseAsOperator }: { farm: Farm; userId: string; onUseAsOperator: () => void }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [email, setEmail] = useState("");
@@ -32,6 +32,11 @@ export function TeamPanel({ farm, userId }: { farm: Farm; userId: string }) {
 
   async function add(event: FormEvent) {
     event.preventDefault();
+    const mine = members?.find((m) => m.user_id === userId);
+    if (mine && email.trim().toLowerCase() === mine.email.toLowerCase()) {
+      toast.error("Ese es tu propio email. Para hacer tareas de operario usá el botón “Usar como operario” de tu fila.");
+      return;
+    }
     setSaving(true);
     const { data, error } = await supabase.rpc("simple_guachera_add_member", { target_farm: farm.id, member_email: email.trim(), member_role: role });
     setSaving(false);
@@ -86,6 +91,10 @@ export function TeamPanel({ farm, userId }: { farm: Farm; userId: string }) {
             <button onClick={() => void removeMember(m)} className="grid size-10 place-items-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-600 sm:order-last" aria-label={`Quitar a ${m.email}`}><Trash2 className="size-4" /></button>
             <Select value={m.role} onChange={(e) => void changeRole(m, e.target.value as Role)} className="!mt-0 !h-10 sm:w-48" aria-label={`Rol de ${m.email}`}>{INVITABLE_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</Select>
           </>}
+          {m.user_id === userId ? <div className="w-full space-y-2 rounded-xl bg-slate-50 px-3 py-3 sm:flex sm:items-center sm:gap-3 sm:space-y-0">
+            <p className="text-sm text-slate-600 sm:flex-1">¿Vas a hacer las tareas del día? Usá la app como operario (solo “Hoy” y “Registro”) y volvés cuando quieras.</p>
+            <Button variant="secondary" onClick={onUseAsOperator} className="w-full sm:w-auto"><HardHat />Usar como operario</Button>
+          </div> : null}
         </li>;
       })}
       {invitations.map((inv) => <li key={inv.email} className="flex items-center gap-3 rounded-2xl border border-dashed border-[#cedad5] bg-white/60 p-3">
